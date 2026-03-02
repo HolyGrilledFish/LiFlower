@@ -10,14 +10,14 @@
         <div class="switch-segments">
           <div
             class="segment"
-            :class="{ active: 角色.类型 === 'Anthropos' }"
+            :class="{ active: character.类型 === 'Anthropos' }"
             @click="onTypeChange('Anthropos')"
           >
             人类 Anthropos
           </div>
           <div
             class="segment"
-            :class="{ active: 角色.类型 === 'Anthroform' }"
+            :class="{ active: character.类型 === 'Anthroform' }"
             @click="onTypeChange('Anthroform')"
           >
             人形 Anthroform
@@ -35,12 +35,12 @@
           </template>
           <el-form :model="角色" label-position="top">
             <el-form-item label="角色名称" required>
-              <el-input v-model="角色.姓名" placeholder="请输入角色名称" size="large" />
+              <el-input v-model="character.姓名" placeholder="请输入角色名称" size="large" />
             </el-form-item>
 
-            <el-form-item v-if="角色.类型 === 'Anthroform'" label="硬件规格" required>
+            <el-form-item v-if="character.类型 === 'Anthroform'" label="硬件规格" required>
               <el-select
-                v-model="角色.硬件规格"
+                v-model="character.硬件规格"
                 placeholder="请选择硬件规格"
                 size="large"
                 style="width: 100%"
@@ -54,10 +54,47 @@
                 >
                   <span>{{ item.名称 }}</span>
                   <span style="float: right; color: #8492a6; font-size: 13px">
-                    属性点:{{ item.属性点 }} | 拓展:{{ item.属性上限拓展 }}
+                    属性点:{{ item.效果.属性点数加值 }} | 上限加值:{{ item.效果.属性上限加值 }}
                   </span>
                 </el-option>
               </el-select>
+            </el-form-item>
+
+            <el-form-item v-if="character.类型 === 'Anthroform'" label="企业技术">
+              <el-select
+                v-model="character.企业技术"
+                placeholder="请选择企业技术（可选）"
+                size="large"
+                clearable
+                style="width: 100%"
+                @change="onEnterpriseChange"
+              >
+                <el-option
+                  v-for="item in 企业技术列表"
+                  :key="item.id"
+                  :label="item.中文名"
+                  :value="item.中文名"
+                >
+                  <span>{{ item.中文名 }}</span>
+                  <span style="float: right; color: #8492a6; font-size: 13px">
+                    {{ item.英文名 }}
+                  </span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+            <!-- 硬件规格描述 -->
+            <el-form-item v-if="character.类型 === 'Anthroform' && 当前硬件描述" label="硬件规格描述">
+              <div class="description-box">
+                <p class="description-text">{{ 当前硬件描述 }}</p>
+              </div>
+            </el-form-item>
+
+            <!-- 企业技术描述 -->
+            <el-form-item v-if="character.类型 === 'Anthroform' && 当前企业描述" label="企业背景">
+              <div class="description-box">
+                <p class="description-text">{{ 当前企业描述 }}</p>
+              </div>
             </el-form-item>
           </el-form>
         </el-card>
@@ -93,35 +130,64 @@
 </template>
 
 <script setup>
-import { reactive } from "vue";
+import { reactive, computed } from "vue";
 import { ElMessage } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import 硬件规格数据 from "@/data/硬件规格.json";
+import 企业技术数据 from "@/data/企业技术.json";
 
-const 角色 = reactive({
-  姓名: "",
-  类型: "",
-  硬件规格: "",
-  起源: "",
-  属性点: "",
-  分配属性点上限: 5,
+const character = reactive({
+  姓名:"",
+  类型:"Anthropos",
+  硬件规格:"",
+  企业技术:"",
+  起源:"",
+  属性点:"",
+  属性上限:0,
 });
 
 const 硬件规格列表 = 硬件规格数据;
+const 企业技术列表 = 企业技术数据;
+
+// 计算属性：获取当前选择的硬件规格描述
+const 当前硬件描述 = computed(() => {
+  if (!character.硬件规格) return "";
+  const selected = 硬件规格列表.find((item) => item.名称 === character.硬件规格);
+  return selected ? selected.描述 : "";
+});
+
+// 计算属性：获取当前选择的企业技术描述
+const 当前企业描述 = computed(() => {
+  if (!character.企业技术) return "";
+  const selected = 企业技术列表.find((item) => item.中文名 === character.企业技术);
+  return selected ? selected.背景 : "";
+});
 
 const onTypeChange = (type) => {
-  角色.类型 = type;
+  character.类型 = type;
   if (type === "Anthropos") {
-    角色.硬件规格 = "";
-    角色.属性点 = "";
+    character.硬件规格 = "";
+    character.企业技术 = "";
+    character.属性点 = "";
   }
 };
 
 const onHardwareChange = (value) => {
   const selected = 硬件规格列表.find((item) => item.名称 === value);
   if (selected) {
-    角色.属性点 = selected.属性点;
-    角色.分配属性点上限 = selected.属性点 + selected.属性上限拓展;
+    character.属性点 = selected.效果.属性点数加值;
+    character.分配属性点上限 = selected.效果.属性点数加值 + selected.效果.属性上限加值;
+  }
+};
+
+const onEnterpriseChange = (value) => {
+  if (!value) {
+    character.企业技术 = "";
+  } else {
+    const selected = 企业技术列表.find((item) => item.中文名 === value);
+    if (selected) {
+      ElMessage.success(`已选择 ${selected.中文名} - ${selected.特殊效果 || '无特殊效果'}`);
+    }
   }
 };
 </script>
@@ -286,6 +352,25 @@ $cyber-darker: #050508;
   font-size: 12px;
   letter-spacing: 1px;
   margin-bottom: 8px;
+}
+
+// 描述框样式
+.description-box {
+  background: rgba(10, 10, 15, 0.8);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  border-radius: 4px;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.description-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0;
+  text-align: justify;
+  font-family: "Microsoft YaHei", sans-serif;
 }
 
 // 输入框样式
