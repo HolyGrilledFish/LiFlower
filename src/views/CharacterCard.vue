@@ -284,6 +284,7 @@ const onEnterpriseChange = (value) => {
 
   if (!value) {
     // 取消选择企业，减去加值
+    newBonus = 0;
     character.manufacturer = "";
     character.attributePoints = character.baseAttributePoints;
     ElMessage.info("已取消选择生产企业");
