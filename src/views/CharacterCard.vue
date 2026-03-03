@@ -10,14 +10,14 @@
         <div class="switch-segments">
           <div
             class="segment"
-            :class="{ active: character.类型 === 'Anthropos' }"
+            :class="{ active: character.type === 'Anthropos' }"
             @click="onTypeChange('Anthropos')"
           >
             人类 Anthropos
           </div>
           <div
             class="segment"
-            :class="{ active: character.类型 === 'Anthroform' }"
+            :class="{ active: character.type === 'Anthroform' }"
             @click="onTypeChange('Anthroform')"
           >
             人形 Anthroform
@@ -27,92 +27,93 @@
     </div>
 
     <div class="three-column-layout">
-      <!-- 左栏:当前表单 -->
+      <!-- 左栏：当前表单 -->
       <div class="column column-left">
         <el-card class="form-card">
           <template #header>
             <span class="card-header">基本信息</span>
           </template>
-          <el-form :model="角色" label-position="top">
+          <el-form :model="character" label-position="top">
             <el-form-item label="角色名称" required>
               <el-input
-                v-model="character.姓名"
+                v-model="character.name"
                 placeholder="请输入角色名称"
                 size="large"
               />
             </el-form-item>
 
             <el-form-item
-              v-if="character.类型 === 'Anthroform'"
+              v-if="character.type === 'Anthroform'"
               label="硬件规格"
               required
             >
               <div style="display: flex; align-items: center; gap: 8px; width: 100%">
                 <CyberSelect
-                  v-model="character.硬件规格"
+                  v-model="character.hardwareSpec"
                   placeholder="请选择硬件规格"
-                  :options="硬件规格选项"
+                  :options="hardwareSpecOptions"
                   @change="onHardwareChange"
                   style="flex: 1; min-width: 0"
                 />
                 <el-popover
-                  v-if="当前硬件描述"
+                  v-if="currentHardwareDesc"
                   placement="right"
                   :width="300"
                   trigger="hover"
-                  :content="当前硬件描述"
+                  :content="currentHardwareDesc"
                 >
                   <template #reference>
                     <el-icon class="info-icon"><InfoFilled /></el-icon>
                   </template>
                 </el-popover>
               </div>
-              <div v-if="当前硬件描述" class="description-text">
-                {{ 当前硬件描述 }}
+              <div v-if="currentHardwareDesc" class="description-text">
+                {{ currentHardwareDesc }}
               </div>
             </el-form-item>
 
-            <el-form-item v-if="character.类型 === 'Anthroform'" label="生产企业">
+            <el-form-item v-if="character.type === 'Anthroform'" label="生产企业">
               <div style="display: flex; align-items: center; gap: 8px; width: 100%">
                 <CyberSelect
-                  v-model="character.企业技术"
+                  v-model="character.manufacturer"
                   placeholder="请选择生产企业（可选）"
-                  :options="企业技术选项"
-                  clearable
+                  :options="manufacturerOptions"
+                  :clearable="true"
                   @change="onEnterpriseChange"
                   style="flex: 1; min-width: 0"
                 />
                 <el-popover
-                  v-if="当前企业描述"
+                  v-if="currentManufacturerDesc"
                   placement="right"
                   :width="300"
                   trigger="hover"
-                  :content="当前企业描述"
+                  :content="currentManufacturerDesc"
                 >
                   <template #reference>
                     <el-icon class="info-icon"><InfoFilled /></el-icon>
                   </template>
                 </el-popover>
               </div>
-              <div v-if="当前企业描述" class="description-text">
-                {{ 当前企业描述 }}
+              <div v-if="currentManufacturerDesc" class="description-text">
+                {{ currentManufacturerDesc }}
               </div>
             </el-form-item>
 
             <!-- 属性点分配 -->
             <AttributeAllocator
-              v-if="character.类型 === 'Anthroform' && character.属性点 > 0"
-              :属性点="character.属性点"
-              :属性上限="character.属性上限"
-              :属性="character.属性"
-              :属性列表="属性列表"
-              @update:属性="character.属性 = $event"
+              v-if="character.type === 'Anthroform' && character.attributePoints > 0"
+              :attribute-points="character.attributePoints"
+              :attribute-limit="character.attributeLimit"
+              :attributes="character.attributes"
+              :attribute-data="attributeData"
+              :source-info="attributePointsInfo"
+              @update:attributes="character.attributes = $event"
             />
           </el-form>
         </el-card>
       </div>
 
-      <!-- 中间栏:待添加 -->
+      <!-- 中间栏：待添加 -->
       <div class="column column-middle">
         <el-card class="placeholder-card">
           <template #header>
@@ -125,7 +126,7 @@
         </el-card>
       </div>
 
-      <!-- 右栏:待添加 -->
+      <!-- 右栏：待添加 -->
       <div class="column column-right">
         <el-card class="placeholder-card">
           <template #header>
@@ -144,85 +145,194 @@
 <script setup>
 import { reactive, computed } from "vue";
 import { ElMessage } from "element-plus";
-import { Plus, InfoFilled } from "@element-plus/icons-vue";
+import { Plus, InfoFilled, Warning } from "@element-plus/icons-vue";
 import CyberSelect from "@/components/CyberSelect.vue";
 import AttributeAllocator from "@/components/AttributeAllocator.vue";
-import 硬件规格数据 from "@/data/硬件规格.json";
-import 企业技术数据 from "@/data/企业技术.json";
-import 基本属性数据 from "@/data/基本属性.json";
 
+// 导入数据文件
+import hardwareSpecData from "@/data/硬件规格.json";
+import manufacturerData from "@/data/企业技术.json";
+import attributeDataJson from "@/data/基本属性.json";
+
+/**
+ * 角色数据对象
+ * @property {String} name - 角色名称
+ * @property {String} type - 角色类型：Anthropos(人类) / Anthroform(人形)
+ * @property {String} hardwareSpec - 硬件规格
+ * @property {String} manufacturer - 生产企业
+ * @property {String} origin - 起源
+ * @property {Number} attributePoints - 属性点总数
+ * @property {Number} attributeLimit - 单项属性上限
+ * @property {Object} attributes - 各项属性值
+ */
 const character = reactive({
-  姓名: "",
-  类型: "Anthroform",
-  硬件规格: "",
-  企业技术: "",
-  起源: "",
-  属性点: 0,
-  已分配属性点: 0,
-  属性上限: 5,
-  属性: { 结构: 0, 力量: 0, 运动: 0, 算力: 0, 信息: 0, 功率: 0 },
+  name: "",
+  type: "Anthroform",
+  hardwareSpec: "",
+  manufacturer: "",
+  origin: "",
+  baseAttributePoints: 0,  // 基础属性点（来自硬件规格）
+  attributePoints: 0,      // 总属性点（含企业加值）
+  attributeLimit: 5,
+  attributes: { structure: 0, strength: 0, athletics: 0, compute: 0, information: 0, power: 0 },
 });
 
-const 硬件规格列表 = 硬件规格数据;
-const 企业技术列表 = 企业技术数据;
-const 属性列表 = 基本属性数据.属性系统;
+// 数据列表
+const hardwareSpecList = hardwareSpecData;
+const manufacturerList = manufacturerData;
+const attributeData = attributeDataJson.attributeSystem;
 
-// 转换数据为选项格式
-const 硬件规格选项 = 硬件规格列表.map((item) => ({
-  label: item.名称,
-  value: item.名称,
-  extra: `属性点:${item.效果.属性点数加值} | 上限加值:${item.效果.属性上限加值}`,
+/**
+ * 硬件规格选项
+ * @property {String} label - 显示名称
+ * @property {String} value - 值
+ * @property {String} extra - 额外信息（属性点和上限加值）
+ */
+const hardwareSpecOptions = hardwareSpecList.map((item) => ({
+  label: item.name,
+  value: item.name,
+  extra: `属性点:${item.effect.attributePointsBonus} | 上限加值:${item.effect.attributeLimitBonus}`,
 }));
 
-const 企业技术选项 = 企业技术列表.map((item) => ({
-  label: item.中文名,
-  value: item.中文名,
-  extra: item.英文名,
+/**
+ * 生产企业选项
+ * @property {String} label - 中文名称
+ * @property {String} value - 值
+ * @property {String} extra - 英文名称
+ */
+const manufacturerOptions = manufacturerList.map((item) => ({
+  label: item.nameZh,
+  value: item.nameZh,
+  extra: item.nameEn,
 }));
 
-// 计算属性:获取当前选择的硬件规格效果描述
-const 当前硬件描述 = computed(() => {
-  if (!character.硬件规格) return "";
-  const selected = 硬件规格列表.find((item) => item.名称 === character.硬件规格);
-  return selected ? selected.效果描述 || "" : "";
+// 计算已分配属性点总数
+const allocatedPoints = computed(() => {
+  return Object.values(character.attributes).reduce((sum, val) => sum + val, 0);
 });
 
-// 计算属性:获取当前选择的企业技术效果描述
-const 当前企业描述 = computed(() => {
-  if (!character.企业技术) return "";
-  const selected = 企业技术列表.find((item) => item.中文名 === character.企业技术);
-  return selected ? selected.效果描述 || "" : "";
+// 计算属性：获取当前选择的硬件规格效果描述
+const currentHardwareDesc = computed(() => {
+  if (!character.hardwareSpec) return "";
+  const selected = hardwareSpecList.find((item) => item.name === character.hardwareSpec);
+  return selected ? selected.effectDescription || "" : "";
 });
 
+// 计算属性：获取当前选择的企业技术效果描述
+const currentManufacturerDesc = computed(() => {
+  if (!character.manufacturer) return "";
+  const selected = manufacturerList.find((item) => item.nameZh === character.manufacturer);
+  return selected ? selected.effectDescription || "" : "";
+});
+
+// 计算属性：获取当前企业技术的属性点加值
+const manufacturerAttributeBonus = computed(() => {
+  if (!character.manufacturer) return 0;
+  const selected = manufacturerList.find((item) => item.nameZh === character.manufacturer);
+  return selected?.effect?.attributePointsBonus || 0;
+});
+
+// 计算属性：显示属性点来源信息
+const attributePointsInfo = computed(() => {
+  const hardware = character.hardwareSpec || "未选择";
+  const manufacturer = character.manufacturer || "无";
+  const bonus = manufacturerAttributeBonus.value;
+  return `硬件规格：${character.baseAttributePoints}${bonus > 0 ? ` + 企业加值：${bonus}` : ""}`;
+});
+
+/**
+ * 切换角色类型
+ * @param {String} type - 角色类型：Anthropos 或 Anthroform
+ */
 const onTypeChange = (type) => {
-  character.类型 = type;
+  character.type = type;
   if (type === "Anthropos") {
-    character.硬件规格 = "";
-    character.企业技术 = "";
-    character.属性点 = 0;
-    character.属性 = { 结构: 0, 力量: 0, 运动: 0, 算力: 0, 信息: 0, 功率: 0 };
+    character.hardwareSpec = "";
+    character.manufacturer = "";
+    character.baseAttributePoints = 0;
+    character.attributePoints = 0;
+    character.attributes = { structure: 0, strength: 0, athletics: 0, compute: 0, information: 0, power: 0 };
   }
 };
 
+/**
+ * 硬件规格变更处理
+ * @param {String} value - 选中的硬件规格名称
+ */
 const onHardwareChange = (value) => {
-  const selected = 硬件规格列表.find((item) => item.名称 === value);
+  const selected = hardwareSpecList.find((item) => item.name === value);
   if (selected) {
-    character.属性点 = selected.效果.属性点数加值;
-    character.属性上限 = 5;
-    // 重置所有属性
-    character.属性 = { 结构: 0, 力量: 0, 运动: 0, 算力: 0, 信息: 0, 功率: 0 };
+    // 设置基础属性点（来自硬件规格的效果）
+    character.baseAttributePoints = selected.effect.attributePointsBonus;
+    character.attributeLimit = 5;
+    // 重置所有属性为 0
+    character.attributes = { structure: 0, strength: 0, athletics: 0, compute: 0, information: 0, power: 0 };
+    // 重置生产企业
+    character.manufacturer = "";
+    // 更新总属性点（基础 + 企业加值，此时企业加值为 0）
+    character.attributePoints = character.baseAttributePoints;
   }
 };
 
+/**
+ * 生产企业变更处理
+ * @param {String} value - 选中的企业名称
+ */
 const onEnterpriseChange = (value) => {
+  const oldBonus = manufacturerAttributeBonus.value;
+  let newBonus = 0;
+
   if (!value) {
-    character.企业技术 = "";
+    // 取消选择企业，减去加值
+    character.manufacturer = "";
+    character.attributePoints = character.baseAttributePoints;
+    ElMessage.info("已取消选择生产企业");
   } else {
-    const selected = 企业技术列表.find((item) => item.中文名 === value);
+    const selected = manufacturerList.find((item) => item.nameZh === value);
     if (selected) {
+      newBonus = selected.effect?.attributePointsBonus || 0;
+      character.manufacturer = value;
+      // 更新总属性点（基础 + 新企业加值）
+      character.attributePoints = character.baseAttributePoints + newBonus;
       ElMessage.success(
-        `已选择 ${selected.中文名} - ${selected.效果描述 || "无效果描述"}`
+        `已选择 ${selected.nameZh} - ${selected.effectDescription || "无效果描述"}${newBonus > 0 ? ` (属性点 +${newBonus})` : ""}`
       );
+    }
+  }
+
+  // 如果总属性点减少，从已分配属性中扣除
+  const pointDifference = oldBonus - newBonus;
+  if (pointDifference > 0 && allocatedPoints.value > 0) {
+    // 需要扣除的属性点数
+    let pointsToDeduct = pointDifference;
+    if (pointsToDeduct > allocatedPoints.value) {
+      pointsToDeduct = allocatedPoints.value;
+    }
+
+    // 从各属性中平均扣除
+    const newAttrs = { ...character.attributes };
+    const attributeKeys = Object.keys(newAttrs);
+
+    while (pointsToDeduct > 0) {
+      // 找到当前值大于 0 的属性
+      const availableAttrs = attributeKeys.filter(key => newAttrs[key] > 0);
+      if (availableAttrs.length === 0) break;
+
+      // 按顺序从每个属性扣除 1 点
+      for (const key of availableAttrs) {
+        if (pointsToDeduct <= 0) break;
+        if (newAttrs[key] > 0) {
+          newAttrs[key] -= 1;
+          pointsToDeduct -= 1;
+        }
+      }
+    }
+
+    character.attributes = newAttrs;
+    if (pointDifference > allocatedPoints.value) {
+      ElMessage.warning(`企业变更导致属性点不足，已重置所有属性`);
+    } else {
+      ElMessage.warning(`企业变更导致属性点减少 ${pointDifference} 点，已从已分配属性中扣除`);
     }
   }
 };
@@ -424,6 +534,15 @@ $cyber-darker: #050508;
   font-size: 13px;
   line-height: 1.6;
   font-family: "Microsoft YaHei", sans-serif;
+
+  &.warning-text {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: rgba(255, 193, 7, 0.9);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 }
 
 // Popover 样式

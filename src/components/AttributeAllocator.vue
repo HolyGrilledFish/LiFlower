@@ -4,22 +4,25 @@
     <el-form-item label="属性点分配">
       <div class="attribute-section">
         <div class="attribute-points-info">
-          <span>可用属性点：<span class="points-highlight">{{ 剩余属性点 }}</span> / {{ 总属性点 }}</span>
+          <span>可用属性点：<span class="points-highlight">{{ remainingPoints }}</span> / {{ totalPoints }}</span>
+        </div>
+        <div v-if="sourceInfo" class="attribute-source-info">
+          {{ sourceInfo }}
         </div>
 
-        <div v-for="属性名 in 属性顺序" :key="属性名" class="attribute-row">
+        <div v-for="attrName in attributeOrder" :key="attrName" class="attribute-row">
           <div class="attribute-label">
-            <span>{{ 属性名 }}</span>
-            <el-tooltip :content="获取属性描述 (属性名)" placement="top" :disabled="!获取属性描述 (属性名)">
+            <span>{{ getAttributeName(attrName) }}</span>
+            <el-tooltip :content="getAttributeDescription(attrName)" placement="top" :disabled="!getAttributeDescription(attrName)">
               <el-icon class="info-icon-small"><InfoFilled /></el-icon>
             </el-tooltip>
           </div>
           <div class="attribute-controls">
-            <el-button size="small" :disabled="!可以减少属性 (属性名)" @click="减少属性 (属性名)" class="attr-btn">
+            <el-button size="small" :disabled="!canDecrease(attrName)" @click="decreaseAttribute(attrName)" class="attr-btn">
               <el-icon><Minus /></el-icon>
             </el-button>
-            <span class="attribute-value">{{ 当前属性值 (属性名) }}</span>
-            <el-button size="small" :disabled="!可以增加属性 (属性名)" @click="增加属性 (属性名)" class="attr-btn">
+            <span class="attribute-value">{{ getCurrentAttributeValue(attrName) }}</span>
+            <el-button size="small" :disabled="!canIncrease(attrName)" @click="increaseAttribute(attrName)" class="attr-btn">
               <el-icon><Plus /></el-icon>
             </el-button>
           </div>
@@ -34,20 +37,29 @@ import { computed } from "vue";
 import { ElMessage } from "element-plus";
 import { Plus, Minus, InfoFilled } from "@element-plus/icons-vue";
 
+/**
+ * Props 定义
+ * @property {Number} attributePoints - 总属性点数
+ * @property {Number} attributeLimit - 单项属性上限（默认 5）
+ * @property {Object} attributes - 当前各属性值对象 { structure, strength, athletics, compute, information, power }
+ * @property {Object} attributeData - 属性列表数据（用于获取描述）
+ * @property {Boolean} showDivider - 是否显示分割线
+ * @property {String} sourceInfo - 属性点来源信息
+ */
 const props = defineProps({
-  属性点：{
+  attributePoints: {
     type: Number,
     default: 0,
   },
-  属性上限：{
+  attributeLimit: {
     type: Number,
     default: 5,
   },
-  属性：{
+  attributes: {
     type: Object,
-    default: () => ({ 结构：0, 力量：0, 运动：0, 算力：0, 信息：0, 功率：0 }),
+    default: () => ({ structure: 0, strength: 0, athletics: 0, compute: 0, information: 0, power: 0 }),
   },
-  属性列表：{
+  attributeData: {
     type: Object,
     default: () => ({}),
   },
@@ -55,46 +67,70 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  sourceInfo: {
+    type: String,
+    default: "",
+  },
 });
 
-const 属性顺序 = ["结构", "力量", "运动", "算力", "信息", "功率"];
+// 属性顺序（使用英文键名）：structure(结构), strength(力量), athletics(运动), compute(算力), information(信息), power(功率)
+const attributeOrder = ["structure", "strength", "athletics", "compute", "information", "power"];
 
-const emit = defineEmits(["update:属性"]);
+// 属性名称映射（英文键名 -> 中文显示名）
+const attributeNameMap = {
+  structure: "结构",
+  strength: "力量",
+  athletics: "运动",
+  compute: "算力",
+  information: "信息",
+  power: "功率",
+};
 
-// 计算已分配属性点
-const 已分配属性点 = computed(() => {
-  return Object.values(props.属性).reduce((sum, val) => sum + val, 0);
+/**
+ * Emit 定义
+ * @event update:attributes - 更新属性值
+ */
+const emit = defineEmits(["update:attributes"]);
+
+// 计算已分配属性点总数
+const allocatedPoints = computed(() => {
+  return Object.values(props.attributes).reduce((sum, val) => sum + val, 0);
 });
 
 // 计算剩余可分配属性点
-const 剩余属性点 = computed(() => {
-  return props.属性点 - 已分配属性点.value;
+const remainingPoints = computed(() => {
+  return props.attributePoints - allocatedPoints.value;
 });
 
 // 获取当前属性值
-const 当前属性值 = (属性名) => {
-  return props.属性 [属性名] || 0;
+const getCurrentAttributeValue = (attrName) => {
+  return props.attributes[attrName] || 0;
 };
 
-// 检查属性是否可以增加
-const 可以增加属性 = (属性名) => {
-  const 当前值 = props.属性 [属性名] || 0;
-  return 当前值 < props.属性上限 && 剩余属性点.value > 0;
+// 获取属性显示名称
+const getAttributeName = (attrName) => {
+  return attributeNameMap[attrName] || attrName;
 };
 
-// 检查属性是否可以减少
-const 可以减少属性 = (属性名) => {
-  return (props.属性 [属性名] || 0) > 0;
+// 检查属性是否可以增加（未达上限且有剩余点数）
+const canIncrease = (attrName) => {
+  const currentValue = props.attributes[attrName] || 0;
+  return currentValue < props.attributeLimit && remainingPoints.value > 0;
+};
+
+// 检查属性是否可以减少（当前值大于 0）
+const canDecrease = (attrName) => {
+  return (props.attributes[attrName] || 0) > 0;
 };
 
 // 增加属性
-const 增加属性 = (属性名) => {
-  if (可以增加属性 (属性名)) {
-    const newAttrs = { ...props.属性，[属性名]: (props.属性 [属性名] || 0) + 1 };
-    emit("update:属性", newAttrs);
+const increaseAttribute = (attrName) => {
+  if (canIncrease(attrName)) {
+    const newAttrs = { ...props.attributes, [attrName]: (props.attributes[attrName] || 0) + 1 };
+    emit("update:attributes", newAttrs);
   } else {
-    const 当前值 = props.属性 [属性名] || 0;
-    if (当前值 >= props.属性上限) {
+    const currentValue = props.attributes[attrName] || 0;
+    if (currentValue >= props.attributeLimit) {
       ElMessage.warning("单项属性上限为 5 点");
     } else {
       ElMessage.warning("没有足够的属性点");
@@ -103,17 +139,17 @@ const 增加属性 = (属性名) => {
 };
 
 // 减少属性
-const 减少属性 = (属性名) => {
-  if (可以减少属性 (属性名)) {
-    const newAttrs = { ...props.属性，[属性名]: (props.属性 [属性名] || 0) - 1 };
-    emit("update:属性", newAttrs);
+const decreaseAttribute = (attrName) => {
+  if (canDecrease(attrName)) {
+    const newAttrs = { ...props.attributes, [attrName]: (props.attributes[attrName] || 0) - 1 };
+    emit("update:attributes", newAttrs);
   }
 };
 
 // 获取属性描述
-const 获取属性描述 = (属性名) => {
-  const attr = props.属性列表 [属性名];
-  return attr ? attr.描述："";
+const getAttributeDescription = (attrName) => {
+  const attr = props.attributeData[attrName];
+  return attr ? attr.description : "";
 };
 </script>
 
@@ -146,6 +182,17 @@ $cyber-darker: #050508;
     font-weight: 700;
     font-size: 16px;
   }
+}
+
+.attribute-source-info {
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  background: rgba(188, 19, 254, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgba(188, 19, 254, 0.8);
+  font-family: "Courier New", "Consolas", monospace;
+  border: 1px solid rgba(188, 19, 254, 0.2);
 }
 
 .attribute-row {
