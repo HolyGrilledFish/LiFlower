@@ -3,9 +3,6 @@
     <el-divider v-if="showDivider" />
     <el-form-item>
       <div class="attribute-section">
-        <div class="attribute-points-info" :class="{ 'warning-negative': isNegative }">
-          <span>可用属性点：<span class="points-highlight">{{ remainingPoints }}</span> / {{ totalPoints }}</span>
-        </div>
         <div v-if="sourceInfo" class="attribute-source-info">
           {{ sourceInfo }}
         </div>
@@ -171,19 +168,9 @@ const allocatedPoints = computed(() => {
   return Object.values(props.attributes).reduce((sum, val) => sum + val, 0);
 });
 
-// 计算剩余可分配属性点
+// 计算剩余可分配属性点（用于逻辑判断）
 const remainingPoints = computed(() => {
   return props.attributePoints - allocatedPoints.value;
-});
-
-// 检测可用属性点是否为负数
-const isNegative = computed(() => {
-  return remainingPoints.value < 0;
-});
-
-// 总属性点数
-const totalPoints = computed(() => {
-  return props.attributePoints;
 });
 
 // 获取当前属性值
@@ -385,36 +372,6 @@ $cyber-red: #ff5252;
 
 .attribute-section {
   width: 100%;
-}
-
-.attribute-points-info {
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: rgba(0, 243, 255, 0.08);
-  border-radius: 4px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
-  font-family: "Courier New", "Consolas", monospace;
-  transition: all 0.3s ease;
-
-  &.warning-negative {
-    background: rgba(255, 82, 82, 0.15);
-    border: 1px solid rgba(255, 82, 82, 0.4);
-    color: rgba(255, 255, 255, 0.9);
-
-    .points-highlight {
-      color: #ff5252;
-      font-weight: 700;
-      font-size: 16px;
-    }
-  }
-}
-
-.points-highlight {
-  color: $cyber-cyan;
-  font-weight: 700;
-  font-size: 16px;
-  transition: all 0.3s ease;
 }
 
 .attribute-source-info {

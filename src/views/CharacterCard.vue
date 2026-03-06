@@ -58,9 +58,13 @@
         <M3_DollAttributes />
       </StandardModule>
 
-      <!-- M4: 属性（人类）- 特殊情况下显示 -->
-      <StandardModule module-id="M4" :show-in-modes="['human-prep']">
-        <M4_HumanAttributes />
+      <!-- M4: 属性（人类）- 模块内部控制显示条件 -->
+      <StandardModule
+        module-id="M4"
+        :show-in-modes="['human-prep']"
+        :show-when="() => m4Ref?.shouldShow"
+      >
+        <M4_HumanAttributes ref="m4Ref" />
       </StandardModule>
 
       <!-- M5: 技能（人类） -->
@@ -190,7 +194,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useModeStore } from "@/stores/mode";
 import { useCharacterStore } from "@/stores/character";
@@ -223,6 +227,9 @@ import M99_ClearCache from "@/modules/M99_ClearCache.vue";
 // ==================== 初始化 ====================
 const modeStore = useModeStore();
 const characterStore = useCharacterStore();
+
+// ==================== 模块引用（用于读取内部显示条件）====================
+const m4Ref = ref(null)
 
 // ==================== 模式列表（用于调试栏）====================
 const modeList = [

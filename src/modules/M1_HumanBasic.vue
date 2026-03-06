@@ -52,9 +52,9 @@
 
             <!-- 特质槽位 -->
             <div class="traits-section">
-              <div 
-                class="trait-item" 
-                v-for="(trait, index) in localData.traits" 
+              <div
+                class="trait-item"
+                v-for="(trait, index) in localData.traits"
                 :key="index"
               >
                 <div class="trait-slot">
@@ -67,8 +67,18 @@
                   />
                   <TipButton level="1" :content="trait.description" />
                 </div>
-                <!-- 特质效果描述 -->
-                <div v-if="trait.effect" class="effect-text trait-effect">
+                <!-- 自由特质：显示自定义输入框 -->
+                <div v-if="isCustomTrait(trait.id)" class="custom-trait-input">
+                  <el-input
+                    v-model="trait.customText"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请描述你的自定义特质..."
+                    class="cyber-textarea"
+                  />
+                </div>
+                <!-- 普通特质：显示效果描述 -->
+                <div v-else-if="trait.effect" class="effect-text trait-effect">
                   {{ trait.effect }}
                 </div>
               </div>
@@ -86,6 +96,7 @@ import { ElMessage } from 'element-plus'
 import CyberSelect from "@/components/CyberSelect.vue"
 import TipButton from "@/components/TipButton.vue"
 import { useCharacterStore } from "@/stores/character"
+import { useAutoOutput } from "@/composables/useModuleOutput"
 
 // 导入数据
 import backgroundData from "@/data/人类起源.json"
@@ -94,13 +105,85 @@ import traitsData from "@/data/特质.json"
 // 使用 character store
 const characterStore = useCharacterStore()
 
-// 本地数据
+// 本地数据（必须先定义）
 const localData = reactive({
   description: "",
   traits: [
-    { id: "", description: "", effect: "" },
-    { id: "", description: "", effect: "" }
+    { id: "", description: "", effect: "", customText: "" },
+    { id: "", description: "", effect: "", customText: "" }
   ]
+})
+
+// 判断是否为自由特质（ID为0）
+const isCustomTrait = (traitId) => {
+  return traitId === '0' || traitId === 0
+}
+
+// ==================== 模块数据输出 ====================
+// 使用计算属性包装，自动同步到全局 store
+// 输出格式：M1:background=1,backgroundName=无意义一代,trait1=2,trait2=5
+
+const backgroundOutput = computed(() => {
+  const bgId = characterStore.humanBackground
+  if (!bgId) return { background: '', backgroundName: '' }
+  const bg = backgroundData.find(item => item.id.toString() === bgId)
+  return {
+    background: bgId,
+    backgroundName: bg ? bg.中文名 : ''
+  }
+})
+
+// 特质输出（排序后，消除顺序差异）
+// [1,2] 和 [2,1] 都会输出为 traits=1,2
+// 自由特质会包含自定义文本
+const traitsOutput = computed(() => {
+  // 收集所有特质信息（包括ID和自定义文本）
+  const traitInfos = localData.traits
+    .filter(t => t.id !== '')
+    .map(t => {
+      if (isCustomTrait(t.id)) {
+        // 自由特质：包含ID和自定义文本
+        return {
+          id: t.id,
+          custom: t.customText || ''
+        }
+      }
+      return { id: t.id, custom: '' }
+    })
+    .sort((a, b) => parseInt(a.id) - parseInt(b.id))
+
+  // 构建traits字符串（ID用逗号分隔，自由特质用|追加文本）
+  const traitStrs = traitInfos.map(t => {
+    if (t.custom) {
+      return `${t.id}|${t.custom}`
+    }
+    return t.id
+  })
+
+  // 单独收集自由特质文本用于显示
+  const customTexts = traitInfos
+    .filter(t => t.custom)
+    .map(t => t.custom)
+
+  return {
+    traits: traitStrs.join(',') || '',
+    traitCount: traitInfos.length,
+    customTraitTexts: customTexts
+  }
+})
+
+const descriptionOutput = computed(() => ({
+  description: localData.description
+}))
+
+// 自动同步所有输出数据
+useAutoOutput({
+  background: computed(() => backgroundOutput.value.background),
+  backgroundName: computed(() => backgroundOutput.value.backgroundName),
+  traits: computed(() => traitsOutput.value.traits),
+  traitCount: computed(() => traitsOutput.value.traitCount),
+  customTraitTexts: computed(() => traitsOutput.value.customTraitTexts.join(';;')),
+  description: computed(() => descriptionOutput.value.description)
 })
 
 // 出身选择
@@ -158,8 +241,16 @@ const getTraitEffect = (traitId) => {
 // 监听特质选择变化，更新描述和效果，并同步到 store
 localData.traits.forEach((trait, index) => {
   watch(() => trait.id, (newId) => {
-    trait.description = getTraitDescription(newId)
-    trait.effect = getTraitEffect(newId)
+    if (isCustomTrait(newId)) {
+      // 自由特质：清空预设效果，保留自定义文本
+      trait.description = getTraitDescription(newId)
+      trait.effect = ''
+    } else {
+      // 普通特质：更新描述和效果，清空自定义文本
+      trait.description = getTraitDescription(newId)
+      trait.effect = getTraitEffect(newId)
+      trait.customText = ''
+    }
     // 同步到 store
     characterStore.setTrait(index, newId)
   })
@@ -304,6 +395,35 @@ $cyber-purple: #bc13fe;
     .trait-effect {
       margin-left: 68px;
       margin-top: 4px;
+    }
+
+    // 自定义特质输入框
+    .custom-trait-input {
+      margin-left: 68px;
+      margin-top: 8px;
+
+      :deep(.cyber-textarea) {
+        width: 100%;
+
+        .el-textarea__inner {
+          background: rgba(10, 10, 15, 0.8);
+          border: 1px solid rgba(0, 243, 255, 0.2);
+          border-radius: 4px;
+          color: #fff;
+          font-family: "Courier New", "Consolas", monospace;
+          padding: 12px;
+          line-height: 1.6;
+
+          &::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+          }
+
+          &:focus {
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+            border-color: #00f3ff;
+          }
+        }
+      }
     }
   }
 }

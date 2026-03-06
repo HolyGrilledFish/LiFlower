@@ -7,14 +7,16 @@
 -->
 <template>
   <div class="module-doll-attributes">
-    <h3 class="module-title">属性点分配</h3>
+    <div class="module-header">
+      <h3 class="module-title">属性点分配</h3>
+      <span class="points-info">可用属性点：<span class="points-highlight">{{ remainingPoints }}</span> / {{ characterStore.totalAttributePoints }}</span>
+    </div>
     <!-- 属性点分配器 -->
     <AttributeAllocator
       :attribute-points="characterStore.totalAttributePoints"
       :attribute-limit="characterStore.attributeLimit"
       :attributes="characterStore.attributes"
       :attribute-data="attributeData"
-      :source-info="attributePointsInfo"
       :show-divider="false"
       :modifier-rules="modifierRules"
       @update:attributes="characterStore.updateAttributes"
@@ -36,14 +38,14 @@ const characterStore = useCharacterStore()
 // 属性数据
 const attributeData = attributeDataJson.attributeSystem
 
-// 属性点来源信息
-const attributePointsInfo = computed(() => {
-  const base = characterStore.baseAttributePoints
-  const bonus = characterStore.totalAttributePoints - base
-  if (bonus > 0) {
-    return `硬件规格：${base} + 企业加值：${bonus}`
-  }
-  return `硬件规格：${base}`
+// 计算已分配属性点
+const allocatedPoints = computed(() => {
+  return Object.values(characterStore.attributes).reduce((sum, val) => sum + val, 0)
+})
+
+// 计算剩余可用属性点
+const remainingPoints = computed(() => {
+  return characterStore.totalAttributePoints - allocatedPoints.value
 })
 
 // 调整值规则（示例：暗隼电子 -> 算力+1）
@@ -64,12 +66,30 @@ $cyber-cyan: #00f3ff;
 .module-doll-attributes {
   width: 100%;
 
-  .module-title {
-    color: $cyber-cyan;
-    margin: 0 0 16px 0;
-    font-size: 16px;
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
     border-bottom: 1px solid rgba(0, 243, 255, 0.2);
     padding-bottom: 8px;
+  }
+
+  .module-title {
+    color: $cyber-cyan;
+    margin: 0;
+    font-size: 16px;
+  }
+
+  .points-info {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    font-family: "Courier New", "Consolas", monospace;
+  }
+
+  .points-highlight {
+    color: $cyber-cyan;
+    font-weight: 700;
   }
 }
 </style>

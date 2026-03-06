@@ -19,9 +19,13 @@
       ⚠️
     </template>
     <template v-else-if="displayValue !== 0">
-      <TipButton level="1" :content="tipContent">
-        {{ formattedValue }}
-      </TipButton>
+      <el-tooltip
+        :content="tipContent"
+        placement="top"
+        popper-class="modifier-tooltip"
+      >
+        <span class="modifier-value">{{ formattedValue }}</span>
+      </el-tooltip>
     </template>
     <template v-else>
       <span class="empty-slot"></span>
@@ -31,7 +35,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import TipButton from './TipButton.vue'
 
 const props = defineProps({
   // 基础值（左边按钮分配的值）
@@ -120,9 +123,18 @@ const tipContent = computed(() => {
     width: 24px;
   }
   
-  :deep(.tip-button) {
+  .modifier-value {
     color: #00f3ff;
     text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+    cursor: help;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: rgba(0, 243, 255, 0.1);
+      text-shadow: 0 0 12px rgba(0, 243, 255, 0.8);
+    }
   }
 }
 </style>
