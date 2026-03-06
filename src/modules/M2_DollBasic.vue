@@ -35,8 +35,10 @@
           </TipButton>
         </div>
         <!-- 效果说明文字（样式优化） -->
-        <div v-if="currentManufacturerEffectDesc" class="effect-text">
-          {{ currentManufacturerEffectDesc }}
+        <div v-if="currentManufacturerEffectDesc && currentManufacturerEffectDesc.length > 0" class="effect-text">
+          <ul class="effect-list">
+            <li v-for="(item, index) in currentManufacturerEffectDesc" :key="index">{{ item }}</li>
+          </ul>
         </div>
       </el-form-item>
 
@@ -55,8 +57,10 @@
           </TipButton>
         </div>
         <!-- 效果说明文字（样式优化） -->
-        <div v-if="currentHardwareEffectDesc" class="effect-text">
-          {{ currentHardwareEffectDesc }}
+        <div v-if="currentHardwareEffectDesc && currentHardwareEffectDesc.length > 0" class="effect-text">
+          <ul class="effect-list">
+            <li v-for="(item, index) in currentHardwareEffectDesc" :key="index">{{ item }}</li>
+          </ul>
         </div>
       </el-form-item>
 
@@ -167,9 +171,9 @@ const currentHardwareFullDesc = computed(() => {
 
 // 当前硬件规格的效果描述（用于下方说明文字）
 const currentHardwareEffectDesc = computed(() => {
-  if (!characterStore.hardwareSpec) return ""
+  if (!characterStore.hardwareSpec) return []
   const selected = hardwareSpecList.find((item) => item.name === characterStore.hardwareSpec)
-  return selected ? selected.effectDescription || "" : ""
+  return selected ? selected.effectDescription || [] : []
 })
 
 // 当前企业的详细描述（用于 tip）
@@ -181,9 +185,9 @@ const currentManufacturerDesc = computed(() => {
 
 // 当前企业的效果描述（用于下方说明文字）
 const currentManufacturerEffectDesc = computed(() => {
-  if (!characterStore.manufacturer) return ""
+  if (!characterStore.manufacturer) return []
   const selected = manufacturerList.find((item) => item.nameZh === characterStore.manufacturer)
-  return selected ? selected.effectDescription || "" : ""
+  return selected ? selected.effectDescription || [] : []
 })
 
 // 可用特质列表（人形显示doll+both，人类显示human+both）
@@ -294,6 +298,21 @@ $cyber-purple: #bc13fe;
     border-left: 3px solid rgba(0, 243, 255, 0.3);
     padding-left: 12px;
     line-height: 1.6;
+  }
+
+  // 效果列表样式（无任何符号）
+  .effect-list {
+    margin: 0;
+    padding-left: 0;
+    list-style-type: none;
+
+    li {
+      margin-bottom: 6px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
   }
 
   // 赛博朋克风格输入框

@@ -5,7 +5,7 @@
 -->
 <template>
   <div
-    v-if="shouldShow"
+    v-show="shouldShow"
     :class="['module-container', `module-${moduleId}`, { 'debug-mode': isDebugMode, 'bare': bare }, $attrs.class]"
     :data-module-id="moduleId"
   >
@@ -16,16 +16,31 @@
       <span class="debug-modes">{{ showInModes.join(', ') }}</span>
     </div>
     
-    <!-- 模块内容插槽 -->
+    <!-- 模块内容插槽（使用 wrapper ref） -->
     <div class="module-content">
       <slot></slot>
+    </div>
+
+    <!-- 调试模式：显示模块输出数据 -->
+    <div v-if="isDebugMode && Object.keys(moduleData).length > 0" class="debug-outputs">
+      <div class="debug-outputs-title">📤 输出数据</div>
+      <div class="debug-outputs-content">
+        <span
+          v-for="(value, key) in moduleData"
+          :key="key"
+          class="output-item"
+        >
+          {{ key }}={{ formatValue(value) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, provide } from 'vue'
 import { useModeStore } from '@/stores/mode'
+import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 
 const props = defineProps({
   // 模块编号（M0, M1, M2...）
@@ -61,9 +76,73 @@ const props = defineProps({
 })
 
 const modeStore = useModeStore()
+const outputsStore = useModuleOutputsStore()
 
 // 是否调试模式（currentMode 为 'debug' 时）
 const isDebugMode = computed(() => modeStore.currentMode === 'debug')
+
+// ==================== 模块数据收集 ====================
+
+/**
+ * 当前模块的输出数据（由子组件提供）
+ */
+const moduleData = ref({})
+
+/**
+ * 注册模块数据的方法（通过 provide 提供给子组件）
+ * @param {Object} data - 子组件提供的数据
+ */
+function registerModuleData(data) {
+  moduleData.value = { ...moduleData.value, ...data }
+}
+
+/**
+ * 更新模块数据的单个字段
+ * @param {string} key - 字段名
+ * @param {*} value - 字段值
+ */
+function setModuleField(key, value) {
+  moduleData.value[key] = value
+}
+
+// 将注册方法提供给子组件
+provide('moduleContext', {
+  moduleId: props.moduleId,
+  registerModuleData,
+  setModuleField
+})
+
+// 监听数据变化，同步到全局 store
+watch(
+  moduleData,
+  (newData) => {
+    if (Object.keys(newData).length > 0) {
+      outputsStore.updateModuleOutput(props.moduleId, newData)
+    }
+  },
+  { deep: true, immediate: false }
+)
+
+// 子组件 ref（用于获取子组件的 shouldShow）
+const slotRef = ref(null)
+
+// 格式化输出值（用于调试显示）
+function formatValue(value) {
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
+// 子组件的显示状态（如果子组件提供了 shouldShow）
+const childShouldShow = computed(() => {
+  // 如果子组件有 shouldShow 属性，使用它
+  if (slotRef.value?.shouldShow !== undefined) {
+    return slotRef.value.shouldShow
+  }
+  // 否则默认显示
+  return true
+})
 
 // 判断是否显示模块
 const shouldShow = computed(() => {
@@ -73,8 +152,11 @@ const shouldShow = computed(() => {
   // 调试模式：显示所有模块
   if (modeStore.currentMode === 'debug') return true
 
-  // 检查额外条件（如果有）
+  // 检查外部传入的条件（如果有）
   if (props.showWhen && !props.showWhen()) return false
+
+  // 检查子组件的内部条件
+  if (!childShouldShow.value) return false
 
   // 空数组 = 所有模式都显示
   if (props.showInModes.length === 0) return true
@@ -168,6 +250,37 @@ $cyber-dark: #0a0a0f;
   &.debug-mode {
     background: rgba(188, 19, 254, 0.05);
     border: 2px dashed $cyber-purple;
+  }
+}
+
+// 调试输出数据显示
+.debug-outputs {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 243, 255, 0.05);
+  border: 1px dashed rgba(0, 243, 255, 0.3);
+  border-radius: 4px;
+
+  .debug-outputs-title {
+    font-size: 11px;
+    color: $cyber-cyan;
+    margin-bottom: 8px;
+    font-family: "Courier New", monospace;
+  }
+
+  .debug-outputs-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .output-item {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.8);
+    font-family: "Courier New", monospace;
+    background: rgba(0, 243, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 3px;
   }
 }
 </style>

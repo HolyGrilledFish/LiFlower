@@ -41,13 +41,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import TipButton from '@/components/TipButton.vue'
 import { useCharacterStore } from '@/stores/character'
+import { useAutoOutput } from '@/composables/useModuleOutput'
 
 const characterStore = useCharacterStore()
 const importCode = ref('')
+
+// 使用计算属性包装 store 中的值，使其成为响应式 ref
+const characterName = computed({
+  get: () => characterStore.characterName,
+  set: (val) => characterStore.setCharacterName(val)
+})
+
+// 自动同步到模块输出：M0:characterName=我是猪
+useAutoOutput({
+  characterName,
+  hasImportCode: computed(() => importCode.value !== '')
+})
 
 const importCharacter = () => {
   if (!importCode.value.trim()) {

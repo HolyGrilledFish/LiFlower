@@ -81,9 +81,9 @@ export const useCharacterStore = defineStore('character', () => {
   const selectedTraits = ref(['', ''])
 
   /**
-   * 总技能点数
+   * 总技能点数（人类默认15点）
    */
-  const totalSkillPoints = ref(30)
+  const totalSkillPoints = ref(15)
 
   // ==================== Getters ====================
 
@@ -190,7 +190,7 @@ export const useCharacterStore = defineStore('character', () => {
     attributes.value = { structure: 0, strength: 0, athletics: 0, compute: 0, information: 0, power: 0 }
     skills.value = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0 }
     selectedTraits.value = ['', '']
-    totalSkillPoints.value = 30
+    totalSkillPoints.value = 15
   }
 
   return {
