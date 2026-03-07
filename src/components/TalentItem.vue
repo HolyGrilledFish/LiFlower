@@ -9,8 +9,7 @@
       <el-input
         v-model="localData.name"
         placeholder="专长名称"
-        class="cyber-input name-input"
-        size="small"
+        class="cyber-input-short name-input"
       />
       <CyberSelect
         v-model="localData.skill"
@@ -33,8 +32,7 @@
       <el-input
         v-model="localData.limitation"
         :placeholder="limitationPlaceholder"
-        class="cyber-input"
-        size="small"
+        class="cyber-input-short"
       />
     </div>
 
@@ -45,7 +43,7 @@
         type="textarea"
         :rows="3"
         placeholder="专长描述..."
-        class="cyber-textarea"
+        class="cyber-input-long"
       />
     </div>
   </div>
@@ -205,54 +203,6 @@ $cyber-red: #ff5252;
 
       &:active {
         transform: scale(0.95);
-      }
-    }
-  }
-
-  // 赛博朋克风格输入框
-  :deep(.cyber-input) {
-    .el-input__wrapper {
-      background: rgba(26, 26, 46, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      box-shadow: none;
-
-      .el-input__inner {
-        color: #fff;
-        font-family: "Courier New", "Consolas", monospace;
-        background: transparent;
-        font-size: 13px;
-
-        &::placeholder {
-          color: rgba(255, 255, 255, 0.3);
-        }
-      }
-
-      &:focus-within {
-        border-color: $cyber-cyan;
-        box-shadow: 0 0 8px rgba(0, 243, 255, 0.15);
-      }
-    }
-  }
-
-  // 赛博朋克风格文本框
-  :deep(.cyber-textarea) {
-    .el-textarea__inner {
-      background: rgba(26, 26, 46, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      border-radius: 4px;
-      color: #fff;
-      font-family: "Courier New", "Consolas", monospace;
-      padding: 8px;
-      line-height: 1.5;
-      font-size: 13px;
-
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.3);
-      }
-
-      &:focus {
-        border-color: $cyber-cyan;
-        box-shadow: 0 0 8px rgba(0, 243, 255, 0.15);
       }
     }
   }

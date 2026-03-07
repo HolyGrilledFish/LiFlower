@@ -30,6 +30,7 @@ import { computed, watch } from 'vue'
 import { useCharacterStore } from '@/stores/character'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import { useAutoOutput } from '@/composables/useModuleOutput'
+import { useModifiers } from '@/composables/useModifiers'
 import AttributeAllocator from '@/components/AttributeAllocator.vue'
 
 // 导入属性数据
@@ -157,13 +158,49 @@ const handleAttributesUpdate = (newAttrs) => {
   characterStore.updateAttributes(newAttrs)
 }
 
-// 调整值规则（人类暂无）
-const modifierRules = []
+// 调整值规则
+// 旧网信徒（出身ID=6）+ 大脑电子化 = 算力+2
+const modifierRules = [
+  {
+    id: 'oldnet_cyberbrain_compute',
+    name: '旧网信徒电子脑',
+    watch: () => ({
+      backgroundId: outputsStore.getModuleOutput('M1').background,
+      hasCyberBrain: outputsStore.getModuleOutput('M6').hasCyberBrain
+    }),
+    match: (data) => data.backgroundId === '6' && data.hasCyberBrain === true,
+    value: 2,
+    target: 'compute'
+  }
+]
+
+// 使用 useModifiers 计算调整值和总值
+const { getModifierFor } = useModifiers(modifierRules)
+
+// 属性键名列表
+const attributeKeys = ['structure', 'strength', 'athletics', 'compute', 'information', 'power']
+
+// 计算每个属性的总值（基础值 + 调整值）
+const attributeTotals = computed(() => {
+  const totals = {}
+  attributeKeys.forEach(key => {
+    const baseValue = characterStore.attributes[key] || 0
+    const modifier = getModifierFor(key)
+    totals[key] = baseValue + modifier
+  })
+  return totals
+})
 
 // ==================== 模块显示控制 ====================
-// 定义模块的显示条件：当可用属性点 > 0 时显示
+// 定义模块的显示条件：
+// 1. 当可用属性点 > 0 时显示
+// 2. 或者已经有任意属性被分配（attributeTotals 中有非零值）
 const shouldShow = computed(() => {
-  return totalAttributePoints.value > 0
+  // 条件1：有可用属性点
+  if (totalAttributePoints.value > 0) return true
+
+  // 条件2：已经有属性被分配（任意一项不等于0）
+  return Object.values(attributeTotals.value).some(val => val !== 0)
 })
 
 // 暴露给父组件（StandardModule）
@@ -179,7 +216,15 @@ useAutoOutput({
   humanityBonus,
   isTheseusShip,
   isSuperfluousGeneration,
-  shouldShow
+  shouldShow,
+  attributeTotals,
+  attributeModifiers: computed(() => {
+    const modifiers = {}
+    attributeKeys.forEach(key => {
+      modifiers[key] = getModifierFor(key)
+    })
+    return modifiers
+  })
 })
 </script>
 

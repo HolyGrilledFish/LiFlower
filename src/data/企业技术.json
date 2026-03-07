@@ -7,6 +7,7 @@
     "effectDescription": ["在当前规格下获得 +3 属性点数（至多 +18）"],
     "restriction": "不能主动攻击没有威胁的敌人，并且无法进行杀死人类的行为",
     "producedSpecs": ["民用级", "警用级"],
+    "availablePatentChips": [2, 8],
     "effect": {
       "attributePointsBonus": 3,
       "attributePointsBonusLimit": 18
@@ -20,6 +21,7 @@
     "effectDescription": ["闪避检定拥有 +2 技能加值"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级", "军用级", "实验级"],
+    "availablePatentChips": [1, 2, 7],
     "effect": {
       "evasionBonus": 2,
       "evasionBonusLimit": -1
@@ -33,6 +35,7 @@
     "effectDescription": ["获得额外 +4HP"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级", "军用级", "实验级"],
+    "availablePatentChips": [1, 2, 4, 7, 9, 10],
     "effect": {
       "hpBonus": 4,
       "hpBonusLimit": -1
@@ -46,6 +49,7 @@
     "effectDescription": ["算力 +1（可以达到 +5）", "每回合可将 1AP 兑换为 1NP"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级", "军用级", "实验级"],
+    "availablePatentChips": [2, 4, 5, 8],
     "effect": {
       "computeBonus": 1,
       "computeBonusLimit": 5,
@@ -60,6 +64,7 @@
     "effectDescription": ["拥有一个紧密连接的非人形智能机械（尖端武装）", "可将其视作第二躯体（两个躯体芯片序列号相同）", "第二躯体可以是任意种类的机械，从汽车到主战坦克，亦或是仿生动物乃至双足外骨骼装甲"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级", "军用级", "实验级"],
+    "availablePatentChips": [3, 5, 6],
     "effect": {
       "secondBody": true
     }
@@ -72,6 +77,7 @@
     "effectDescription": ["维修时间减半", "维修需求零件下降 1 级"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级"],
+    "availablePatentChips": [4, 6, 10],
     "effect": {
       "repairTimeReduction": 0.5,
       "repairPartLevelReduction": 1
@@ -85,6 +91,7 @@
     "effectDescription": ["提升侦察 +2", "电子干扰 +2"],
     "restriction": null,
     "producedSpecs": ["警用级", "军用级"],
+    "availablePatentChips": [1, 2, 4, 6, 7],
     "effect": {
       "investigationBonus": 2,
       "hackingBonus": 2
@@ -98,6 +105,7 @@
     "effectDescription": ["不受武器管制法的管辖"],
     "restriction": null,
     "producedSpecs": ["劳工级", "民用级", "警用级", "军用级", "实验级"],
+    "availablePatentChips": [],
     "effect": {
       "noWeaponLawRestriction": true
     }

@@ -10,29 +10,27 @@
     
     <el-form label-position="top">
       <!-- 角色名称（与 M0 同步） -->
-      <el-form-item label="角色名称" required>
+      <el-form-item>
         <el-input
           v-model="characterStore.characterName"
-          placeholder="请输入角色名称"
-          size="large"
-          class="cyber-input"
+          placeholder="请输入"
+          class="cyber-input-short"
         />
       </el-form-item>
 
       <!-- 生产企业 -->
-      <el-form-item label="生产企业">
+      <el-form-item>
         <div class="form-row">
+          <span class="field-label">生产企业</span>
           <CyberSelect
             v-model="characterStore.manufacturer"
-            placeholder="请选择生产企业（可选）"
+            placeholder="请选择生产企业"
             :options="manufacturerOptions"
             :clearable="true"
             @change="onEnterpriseChange"
             style="flex: 1"
           />
-          <TipButton level="2" :content="currentManufacturerDesc">
-            企业文化
-          </TipButton>
+          <TipButton level="2" :content="currentManufacturerDesc" />
         </div>
         <!-- 效果说明文字（样式优化） -->
         <div v-if="currentManufacturerEffectDesc && currentManufacturerEffectDesc.length > 0" class="effect-text">
@@ -43,8 +41,9 @@
       </el-form-item>
 
       <!-- 硬件规格 -->
-      <el-form-item label="硬件规格" required>
+      <el-form-item>
         <div class="form-row">
+          <span class="field-label">硬件规格</span>
           <CyberSelect
             v-model="characterStore.hardwareSpec"
             placeholder="请选择硬件规格"
@@ -52,9 +51,7 @@
             @change="onHardwareChange"
             style="flex: 1"
           />
-          <TipButton level="3" :content="currentHardwareFullDesc">
-            规格说明
-          </TipButton>
+          <TipButton level="2" :content="currentHardwareFullDesc" />
         </div>
         <!-- 效果说明文字（样式优化） -->
         <div v-if="currentHardwareEffectDesc && currentHardwareEffectDesc.length > 0" class="effect-text">
@@ -73,7 +70,7 @@
               type="textarea"
               :rows="4"
               placeholder="描述你的角色背景、性格、外貌等..."
-              class="cyber-textarea"
+              class="cyber-input-long"
             />
 
             <!-- 特质槽位 -->
@@ -113,6 +110,7 @@ import CyberSelect from "@/components/CyberSelect.vue"
 import AttributeAllocator from "@/components/AttributeAllocator.vue"
 import TipButton from "@/components/TipButton.vue"
 import { useCharacterStore } from "@/stores/character"
+import { useAutoOutput } from "@/composables/useModuleOutput"
 
 // 导入数据
 import hardwareSpecData from "@/data/硬件规格.json"
@@ -255,9 +253,40 @@ const onEnterpriseChange = (value) => {
     }
   }
 }
+
+// ==================== 数据输出 ====================
+// 获取企业ID
+const manufacturerId = computed(() => {
+  if (!characterStore.manufacturer) return null
+  const selected = manufacturerList.find((item) => item.nameZh === characterStore.manufacturer)
+  return selected?.id || null
+})
+
+// 获取硬件规格ID
+const hardwareSpecId = computed(() => {
+  if (!characterStore.hardwareSpec) return null
+  const selected = hardwareSpecList.find((item) => item.name === characterStore.hardwareSpec)
+  return selected?.id || null
+})
+
+// 获取选中的特质ID列表（无顺序，过滤空值）
+const selectedTraitIds = computed(() => {
+  return localData.traits
+    .map(t => t.id)
+    .filter(id => id) // 过滤掉空值
+})
+
+useAutoOutput({
+  manufacturerId,
+  hardwareSpecId,
+  description: computed(() => localData.description),
+  traitIds: selectedTraitIds
+})
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/input-styles.scss' as *;
+
 $cyber-cyan: #00f3ff;
 $cyber-purple: #bc13fe;
 
@@ -277,6 +306,13 @@ $cyber-purple: #bc13fe;
     width: 100%;
   }
 
+  .field-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
   .desc-text {
     margin-top: 8px;
     padding: 10px 12px;
@@ -288,16 +324,9 @@ $cyber-purple: #bc13fe;
     line-height: 1.6;
   }
 
-  // 效果说明文字（无框线，更像自然说明）
+  // 效果说明文字（使用全局样式）
   .effect-text {
-    margin-top: 8px;
-    padding: 8px 0;
-    color: rgba(0, 243, 255, 0.8);
-    font-size: 13px;
-    font-style: italic;
-    border-left: 3px solid rgba(0, 243, 255, 0.3);
-    padding-left: 12px;
-    line-height: 1.6;
+    @extend .cyber-effect-text;
   }
 
   // 效果列表样式（无任何符号）
@@ -315,30 +344,6 @@ $cyber-purple: #bc13fe;
     }
   }
 
-  // 赛博朋克风格输入框
-  :deep(.cyber-input) {
-    .el-input__wrapper {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      box-shadow: none;
-
-      .el-input__inner {
-        color: #fff;
-        font-family: "Courier New", "Consolas", monospace;
-        background: transparent;
-
-        &::placeholder {
-          color: rgba(255, 255, 255, 0.4);
-        }
-      }
-
-      &:focus-within {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
-  }
-
   // 角色阐述区域宽度修复
   .character-desc-item {
     :deep(.el-form-item__content) {
@@ -349,30 +354,6 @@ $cyber-purple: #bc13fe;
   // 折叠面板宽度修复
   .character-collapse {
     width: 100%;
-  }
-
-  // 赛博朋克风格文本框
-  :deep(.cyber-textarea) {
-    width: 100%;
-
-    .el-textarea__inner {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      border-radius: 4px;
-      color: #fff;
-      font-family: "Courier New", "Consolas", monospace;
-      padding: 12px;
-      line-height: 1.6;
-
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.4);
-      }
-
-      &:focus {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
   }
 
   .traits-section {

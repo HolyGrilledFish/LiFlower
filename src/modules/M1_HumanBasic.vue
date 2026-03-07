@@ -14,8 +14,7 @@
         <el-input
           v-model="characterStore.characterName"
           placeholder="请输入角色名称"
-          size="large"
-          class="cyber-input"
+          class="cyber-input-short"
         />
       </el-form-item>
 
@@ -45,9 +44,8 @@
             <el-input
               v-model="localData.description"
               type="textarea"
-              :rows="4"
               placeholder="描述你的角色背景、性格、外貌等..."
-              class="cyber-textarea"
+              class="cyber-input-long"
             />
 
             <!-- 特质槽位 -->
@@ -315,54 +313,6 @@ $cyber-purple: #bc13fe;
     }
   }
 
-  // 赛博朋克风格输入框
-  :deep(.cyber-input) {
-    .el-input__wrapper {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      box-shadow: none;
-
-      .el-input__inner {
-        color: #fff;
-        font-family: "Courier New", "Consolas", monospace;
-        background: transparent;
-
-        &::placeholder {
-          color: rgba(255, 255, 255, 0.4);
-        }
-      }
-
-      &:focus-within {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
-  }
-
-  // 赛博朋克风格文本框
-  :deep(.cyber-textarea) {
-    width: 100%;
-
-    .el-textarea__inner {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      border-radius: 4px;
-      color: #fff;
-      font-family: "Courier New", "Consolas", monospace;
-      padding: 12px;
-      line-height: 1.6;
-
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.4);
-      }
-
-      &:focus {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
-  }
-
   // 特质槽位样式
   .traits-section {
     margin-top: 16px;
@@ -401,29 +351,6 @@ $cyber-purple: #bc13fe;
     .custom-trait-input {
       margin-left: 68px;
       margin-top: 8px;
-
-      :deep(.cyber-textarea) {
-        width: 100%;
-
-        .el-textarea__inner {
-          background: rgba(10, 10, 15, 0.8);
-          border: 1px solid rgba(0, 243, 255, 0.2);
-          border-radius: 4px;
-          color: #fff;
-          font-family: "Courier New", "Consolas", monospace;
-          padding: 12px;
-          line-height: 1.6;
-
-          &::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-          }
-
-          &:focus {
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-            border-color: #00f3ff;
-          }
-        }
-      }
     }
   }
 }

@@ -13,8 +13,7 @@
       <el-input
         v-model="characterStore.characterName"
         placeholder="请输入角色名称"
-        size="large"
-        class="cyber-input"
+        class="cyber-input-short"
       />
     </div>
 
@@ -25,7 +24,7 @@
         type="textarea"
         :rows="4"
         placeholder="请粘贴角色代码"
-        class="cyber-textarea"
+        class="cyber-input-long"
       />
       <div class="import-actions">
         <el-button type="primary" @click="importCharacter">
@@ -73,6 +72,8 @@ const importCharacter = () => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/input-styles.scss' as *;
+
 .module-m0 {
   .module-title {
     color: #00f3ff;
@@ -98,50 +99,14 @@ const importCharacter = () => {
     margin-top: 12px;
   }
 
-  // 赛博朋克风格输入框
-  :deep(.cyber-input) {
-    .el-input__wrapper {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      box-shadow: none;
-
-      .el-input__inner {
-        color: #fff;
-        font-family: "Courier New", "Consolas", monospace;
-        background: transparent;
-
-        &::placeholder {
-          color: rgba(255, 255, 255, 0.4);
-        }
-      }
-
-      &:focus-within {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
+  // 使用全局短文本框样式
+  :deep(.cyber-input-short) {
+    @extend .cyber-input-short;
   }
 
-  // 赛博朋克风格文本框
-  :deep(.cyber-textarea) {
-    .el-textarea__inner {
-      background: rgba(10, 10, 15, 0.8);
-      border: 1px solid rgba(0, 243, 255, 0.2);
-      border-radius: 4px;
-      color: #fff;
-      font-family: "Courier New", "Consolas", monospace;
-      padding: 12px;
-      line-height: 1.6;
-
-      &::placeholder {
-        color: rgba(255, 255, 255, 0.4);
-      }
-
-      &:focus {
-        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-        border-color: #00f3ff;
-      }
-    }
+  // 使用全局长文本框样式
+  :deep(.cyber-input-long) {
+    @extend .cyber-input-long;
   }
 }
 </style>

@@ -11,8 +11,8 @@
   />
 -->
 <template>
-  <div class="dot-grid-row">
-    <span class="grid-label">{{ label }}</span>
+  <div class="dot-grid-row" :class="{ 'no-label': !label, 'borderless': borderless }">
+    <span v-if="label" class="grid-label">{{ label }}</span>
     <div class="grid-dots">
       <div
         v-for="n in max"
@@ -23,7 +23,7 @@
       ></div>
     </div>
     <TipButton v-if="description" level="1" :content="description" />
-    <span v-if="showValue" class="grid-value">{{ modelValue }}</span>
+    <span class="grid-value">{{ modelValue }}</span>
   </div>
 </template>
 
@@ -45,7 +45,7 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  showValue: {
+  borderless: {
     type: Boolean,
     default: false
   }
@@ -77,6 +77,17 @@ $cyber-dark: #0a0a0f;
   &:hover {
     border-color: rgba(0, 243, 255, 0.3);
     background: rgba(0, 243, 255, 0.05);
+  }
+
+  // 无边框模式
+  &.borderless {
+    background: transparent;
+    border: none;
+    padding: 0;
+
+    &:hover {
+      background: transparent;
+    }
   }
 }
 

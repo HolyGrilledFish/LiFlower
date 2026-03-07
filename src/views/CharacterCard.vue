@@ -13,14 +13,16 @@
             :class="{ active: isHumanMode }"
             @click="onTypeChange('Anthropos')"
           >
-            人类 Anthropos
+            <span class="label-cn">人类</span>
+            <span class="label-en">Anthropos</span>
           </div>
           <div
             class="segment"
             :class="{ active: isDollMode }"
             @click="onTypeChange('Anthroform')"
           >
-            人形 Anthroform
+            <span class="label-cn">人形</span>
+            <span class="label-en">Anthroform</span>
           </div>
         </div>
       </div>
@@ -77,9 +79,9 @@
         <M6_HumanTalents />
       </StandardModule>
 
-      <!-- M7: 人形芯片 -->
+      <!-- M7: 装备（人形） -->
       <StandardModule module-id="M7" :show-in-modes="['doll-prep']">
-        <M7_DollChips />
+        <M7_Equipment />
       </StandardModule>
 
       <!-- M8: 装备（人类） -->
@@ -208,7 +210,7 @@ import M3_DollAttributes from "@/modules/M3_DollAttributes.vue";
 import M4_HumanAttributes from "@/modules/M4_HumanAttributes.vue";
 import M5_HumanSkills from "@/modules/M5_HumanSkills.vue";
 import M6_HumanTalents from "@/modules/M6_HumanTalents.vue";
-import M7_DollChips from "@/modules/M7_DollChips.vue";
+import M7_Equipment from "@/modules/M7_Equipment.vue";
 import M8_HumanGear from "@/modules/M8_HumanGear.vue";
 import M9_DollWeapon from "@/modules/M9_DollWeapon.vue";
 import M10_DollGear from "@/modules/M10_DollGear.vue";
@@ -402,13 +404,15 @@ $cyber-darker: #050508;
 }
 
 .segment {
-  padding: 12px 24px;
-  font-size: 13px;
+  padding: 10px 20px;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: "Courier New", "Consolas", monospace;
   border-right: 1px solid rgba(0, 243, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 
   &:last-child {
     border-right: none;
@@ -428,6 +432,18 @@ $cyber-darker: #050508;
     color: $cyber-cyan;
     font-weight: 700;
     box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.2);
+  }
+
+  .label-cn {
+    font-size: 14px;
+    font-family: "Courier New", "Consolas", monospace;
+    font-weight: 600;
+  }
+
+  .label-en {
+    font-size: 11px;
+    font-family: "Arial", "Helvetica", sans-serif;
+    opacity: 0.7;
   }
 }
 
@@ -665,6 +681,15 @@ $cyber-darker: #050508;
   .segment {
     flex: 1;
     text-align: center;
+    padding: 8px 12px;
+
+    .label-cn {
+      font-size: 13px;
+    }
+
+    .label-en {
+      font-size: 10px;
+    }
   }
 }
 

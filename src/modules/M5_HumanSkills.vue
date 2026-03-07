@@ -31,6 +31,7 @@ import { computed, watch } from 'vue'
 import { useCharacterStore } from '@/stores/character'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import { useAutoOutput } from '@/composables/useModuleOutput'
+import { useModifiers } from '@/composables/useModifiers'
 import AttributeAllocator from '@/components/AttributeAllocator.vue'
 import skillsData from '@/data/skills.json'
 
@@ -293,6 +294,20 @@ const modifierRules = [
   }
 ]
 
+// 使用 useModifiers 计算调整值
+const { getModifierFor } = useModifiers(modifierRules)
+
+// 计算每个技能的总值（基础值 + 调整值）
+const skillTotals = computed(() => {
+  const totals = {}
+  for (let i = 1; i <= 16; i++) {
+    const baseValue = characterStore.skills[i] || 0
+    const modifier = getModifierFor(i.toString())
+    totals[i] = baseValue + modifier
+  }
+  return totals
+})
+
 // ==================== 数据输出 ====================
 // 输出技能点相关信息供其他模块使用
 useAutoOutput({
@@ -302,7 +317,15 @@ useAutoOutput({
   humanityBonus,
   remainingSkillPoints: remainingPoints,
   usedSkillPoints: computed(() => totalSkillPoints.value - remainingPoints.value),
-  isTheseusShip
+  isTheseusShip,
+  skillTotals,
+  skillModifiers: computed(() => {
+    const modifiers = {}
+    for (let i = 1; i <= 16; i++) {
+      modifiers[i] = getModifierFor(i.toString())
+    }
+    return modifiers
+  })
 })
 </script>
 

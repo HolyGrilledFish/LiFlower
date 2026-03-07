@@ -27,6 +27,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useCharacterStore } from '@/stores/character'
+import { useAutoOutput } from '@/composables/useModuleOutput'
+import { useModifiers } from '@/composables/useModifiers'
 import AttributeAllocator from '@/components/AttributeAllocator.vue'
 
 // 导入属性数据
@@ -58,6 +60,38 @@ const modifierRules = [
     target: 'compute'
   }
 ]
+
+// 使用 useModifiers 计算调整值和总值
+const { getModifierFor } = useModifiers(modifierRules)
+
+// 属性键名列表
+const attributeKeys = ['structure', 'strength', 'athletics', 'compute', 'information', 'power']
+
+// 计算每个属性的总值（基础值 + 调整值）
+const attributeTotals = computed(() => {
+  const totals = {}
+  attributeKeys.forEach(key => {
+    const baseValue = characterStore.attributes[key] || 0
+    const modifier = getModifierFor(key)
+    totals[key] = baseValue + modifier
+  })
+  return totals
+})
+
+// 数据输出
+useAutoOutput({
+  remainingPoints,
+  allocatedPoints,
+  totalAttributePoints: computed(() => characterStore.totalAttributePoints),
+  attributeTotals,
+  attributeModifiers: computed(() => {
+    const modifiers = {}
+    attributeKeys.forEach(key => {
+      modifiers[key] = getModifierFor(key)
+    })
+    return modifiers
+  })
+})
 </script>
 
 <style lang="scss" scoped>

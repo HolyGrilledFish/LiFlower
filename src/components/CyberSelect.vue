@@ -1,13 +1,13 @@
 <template>
-  <div ref="cyberSelectRef" class="cyber-select" :class="{ open: isOpen }">
+  <div ref="cyberSelectRef" class="cyber-select" :class="{ open: isOpen, disabled: disabled }">
     <!-- 输入框区域 -->
     <div class="cyber-select-input" @click="toggleDropdown">
       <span v-if="modelValue" class="selected-value">{{ selectedLabel }}</span>
       <span v-else class="placeholder">{{ placeholder }}</span>
-      <el-icon v-if="clearable && modelValue" class="clear-icon" @click.stop="clearValue">
+      <el-icon v-if="clearable && modelValue && !disabled" class="clear-icon" @click.stop="clearValue">
         <CircleClose />
       </el-icon>
-      <el-icon class="arrow-icon" :class="{ rotated: isOpen }">
+      <el-icon class="arrow-icon" :class="{ rotated: isOpen, disabled: disabled }">
         <ArrowDown />
       </el-icon>
     </div>
@@ -55,8 +55,15 @@ const props = defineProps({
   clearable: {
     type: Boolean,
     default: false
+  },
+  disabled: {
+    type: Boolean,
+    default: false  // 默认开启，特殊情况才禁用
   }
 });
+
+// 解构 disabled 以便在模板中直接使用
+const { disabled } = props
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
@@ -88,6 +95,7 @@ const updateDropdownPosition = () => {
 };
 
 const toggleDropdown = () => {
+  if (props.disabled) return
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     nextTick(() => {
@@ -152,6 +160,23 @@ $cyber-darker: #050508;
   position: relative;
   width: 100%;
   flex: 1;
+
+  &.disabled {
+    .cyber-select-input {
+      background: rgba(26, 26, 46, 0.5);
+      border-color: rgba(0, 243, 255, 0.15);
+      cursor: default;
+
+      &:hover {
+        border-color: rgba(0, 243, 255, 0.15);
+        box-shadow: none;
+      }
+    }
+
+    .selected-value {
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
 }
 
 .cyber-select-input {
@@ -159,13 +184,13 @@ $cyber-darker: #050508;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: rgba(10, 10, 15, 0.8);
   border: 1px solid rgba(0, 243, 255, 0.2);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: 40px;
+  min-height: 32px;
   box-sizing: border-box;
 
   &:hover {
@@ -208,10 +233,15 @@ $cyber-darker: #050508;
 .arrow-icon {
   font-size: 16px;
   color: $cyber-cyan;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 
   &.rotated {
     transform: rotate(180deg);
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.4);
   }
 }
 
