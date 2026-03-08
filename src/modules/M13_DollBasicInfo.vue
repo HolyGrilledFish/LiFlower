@@ -23,13 +23,16 @@
       />
     </div>
 
-    <!-- 企业和规格信息 -->
-    <div v-if="manufacturerName || hardwareSpecName" class="manufacturer-info">
-      <div v-if="manufacturerName" class="manufacturer-text">
-        由{{ manufacturerName }}制造
+    <!-- 企业和规格信息（终端风格） -->
+    <div class="terminal-info">
+      <div v-if="isBlackMarket" class="terminal-line illegal">
+        <span class="terminal-text">非法人形</span>
       </div>
-      <div v-if="hardwareSpecName" class="spec-text">
-        {{ hardwareSpecName }}人形
+      <div v-else-if="manufacturerName || hardwareSpecName" class="terminal-line">
+        <span class="terminal-text">{{ specDisplayText }}</span>
+      </div>
+      <div v-else class="terminal-line unknown">
+        <span class="terminal-text">规格未知·未查询到序列号</span>
       </div>
     </div>
 
@@ -119,6 +122,26 @@ const hardwareSpecName = computed(() => {
   return moduleOutputs.outputs.M2?.hardwareSpecName || ''
 })
 
+// 从 M2 获取生产企业ID（用于判断黑品）
+const manufacturerId = computed(() => {
+  return moduleOutputs.outputs.M2?.manufacturerId || null
+})
+
+// 是否是黑品（ID=8）
+const isBlackMarket = computed(() => {
+  return manufacturerId.value === 8
+})
+
+// 规格显示文本
+const specDisplayText = computed(() => {
+  const spec = hardwareSpecName.value || '未知规格'
+  const manufacturer = manufacturerName.value
+  if (!manufacturer) {
+    return `${spec}人形·厂商不明`
+  }
+  return `${spec}人形·由${manufacturer}制造`
+})
+
 // 角色姓名（ID 1）
 const characterName = computed(() => {
   const moduleData = moduleOutputs.outputs.M0 || {}
@@ -194,6 +217,35 @@ $cyber-purple: #bc13fe;
     :deep(.data-name) {
       color: $cyber-cyan;
       font-size: 18px;
+    }
+  }
+
+  // 终端风格信息展示
+  .terminal-info {
+    margin-top: 16px;
+    font-family: "Courier New", "Consolas", monospace;
+  }
+
+  .terminal-line {
+    .terminal-text {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    &.illegal {
+      .terminal-text {
+        color: #ff2a6d;
+        font-size: 16px;
+        font-weight: 700;
+      }
+    }
+
+    &.unknown {
+      .terminal-text {
+        color: rgba(255, 255, 255, 0.5);
+      }
     }
   }
 

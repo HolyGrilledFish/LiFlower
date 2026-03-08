@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useCharacterStore } from '@/stores/character'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import { useAutoOutput } from '@/composables/useModuleOutput'
@@ -114,29 +114,6 @@ const skillData = computed(() => {
     }
   })
   return formatted
-})
-
-// 特殊技能范围定义
-// 人性技能（ID=16）在忒修斯模式下只能为负值（-4到0），用于转化为属性点
-// 其他技能在忒修斯模式下固定为0（max=0，无法增加）
-const specialSkillRanges = computed(() => {
-  const ranges = {}
-
-  if (isTheseusShip.value) {
-    // 忒修斯模式：人性技能范围 -4~0，其他技能 max=0（无法加点）
-    for (let i = 1; i <= 16; i++) {
-      if (i === 16) {
-        ranges[i] = { min: -4, max: 0, normalMin: 0, normalMax: 0 }
-      } else {
-        ranges[i] = { min: 0, max: 0, normalMin: 0, normalMax: 0 }
-      }
-    }
-  } else {
-    // 普通模式：只有人性技能特殊
-    ranges['16'] = { min: -4, max: 4, normalMin: 0, normalMax: 4 }
-  }
-
-  return ranges
 })
 
 // ==================== 调整值规则（监听 M1 输出）====================
@@ -293,11 +270,109 @@ const modifierRules = [
     match: '11',
     value: 2,
     target: '7'
+  },
+  // 虚伪凝聚力（ID=25）-> 擦除（ID=12）-1
+  {
+    id: 'false_cohesion_erase',
+    name: '虚伪凝聚力',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('25') || traits.includes(25)),
+    value: -1,
+    target: '12'
   }
 ]
 
 // 使用 useModifiers 计算调整值
 const { getModifierFor } = useModifiers(modifierRules)
+
+// 技能键名列表（1-16）
+const skillKeys = Array.from({ length: 16 }, (_, i) => (i + 1).toString())
+
+// 获取各技能的最大可分配值（考虑调整值）
+const getMaxAllocatable = (skillId) => {
+  const modifier = getModifierFor(skillId)
+  // 最大可分配值 = 5 - 调整值（但不能小于0）
+  return Math.max(0, 5 - modifier)
+}
+
+// 检查是否有古法炼体特质（ID=19）
+const hasAncientBodybuilding = computed(() => {
+  const traits = outputsStore.getModuleOutput('M1').traits || []
+  return traits.includes('19') || traits.includes(19)
+})
+
+// 特殊技能范围定义
+// 人性技能（ID=16）在忒修斯模式下只能为负值（-4到0），用于转化为属性点
+// 其他技能在忒修斯模式下固定为0（max=0，无法增加）
+const specialSkillRanges = computed(() => {
+  const ranges = {}
+
+  if (isTheseusShip.value) {
+    // 忒修斯模式：人性技能范围 -4~0，其他技能 max=0（无法加点）
+    for (let i = 1; i <= 16; i++) {
+      if (i === 16) {
+        ranges[i] = { min: -4, max: 0, normalMin: 0, normalMax: 0 }
+      } else {
+        ranges[i] = { min: 0, max: 0, normalMin: 0, normalMax: 0 }
+      }
+    }
+  } else {
+    // 普通模式：所有技能考虑调整值限制
+    for (let i = 1; i <= 16; i++) {
+      const skillId = i.toString()
+      const maxAllocatable = getMaxAllocatable(skillId)
+      
+      // 古法炼体（ID=19）：技能3~15范围限制为0~2
+      let effectiveMax = maxAllocatable
+      if (hasAncientBodybuilding.value && i >= 3 && i <= 15) {
+        effectiveMax = Math.min(2, maxAllocatable)
+      }
+      
+      // 人性技能（ID=16）特殊范围 -4~4
+      if (i === 16) {
+        ranges[skillId] = {
+          min: -4,
+          max: Math.min(4, effectiveMax),
+          normalMin: 0,
+          normalMax: Math.min(4, effectiveMax)
+        }
+      } else {
+        ranges[skillId] = {
+          min: 0,
+          max: effectiveMax,
+          normalMin: 0,
+          normalMax: effectiveMax
+        }
+      }
+    }
+  }
+
+  return ranges
+})
+
+// 监听调整值变化，如果变化则清空对应技能
+const previousModifiers = ref({})
+
+watch(() => skillKeys.map(key => getModifierFor(key)), (newModifiers) => {
+  skillKeys.forEach((key, index) => {
+    const newModifier = newModifiers[index]
+    const oldModifier = previousModifiers.value[key]
+
+    // 如果调整值发生变化且技能值超过新的最大值，清空技能
+    if (oldModifier !== undefined && oldModifier !== newModifier) {
+      const maxAllocatable = getMaxAllocatable(key)
+      const currentValue = characterStore.skills[key] || 0
+
+      if (currentValue > maxAllocatable) {
+        const newSkills = { ...characterStore.skills }
+        newSkills[key] = 0
+        characterStore.updateSkills(newSkills)
+      }
+    }
+
+    previousModifiers.value[key] = newModifier
+  })
+}, { immediate: true, deep: true })
 
 // 计算每个技能的总值（基础值 + 调整值）
 const skillTotals = computed(() => {

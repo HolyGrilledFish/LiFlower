@@ -1,5 +1,5 @@
 <template>
-  <div class="attribute-allocator">
+  <div class="attribute-allocator" :class="{ collapsible: collapsible }">
     <el-divider v-if="showDivider" />
     <el-form-item>
       <div class="attribute-section">
@@ -7,37 +7,71 @@
           {{ sourceInfo }}
         </div>
 
-        <div v-for="attrName in attributeOrder" :key="attrName" class="attribute-row">
-          <div class="attribute-label">
+        <div
+          v-for="attrName in filteredAttributeOrder"
+          :key="attrName"
+          class="attribute-row"
+          :class="{ expanded: isExpanded(attrName), 'has-value': getCurrentAttributeValue(attrName) > 0 }"
+        >
+          <!-- 可展开模式：头部 -->
+          <div v-if="collapsible" class="attribute-header" @click="toggleExpand(attrName)">
+            <div class="attribute-label">
+              <span>{{ getAttributeName(attrName) }}</span>
+              <TipButton
+                level="1"
+                :html-content="getAttributeTipContent(attrName)"
+              />
+            </div>
+            <div class="attribute-summary">
+              <span class="attribute-value" :class="{ 'out-of-range': isOutOfNormalRange(attrName), 'has-modifier': getModifierFor(attrName) !== 0 }">
+                {{ getTotalValue(attrName) }}
+              </span>
+              <el-icon class="expand-icon">
+                <ArrowDown v-if="isExpanded(attrName)" />
+                <ArrowRight v-else />
+              </el-icon>
+            </div>
+          </div>
+
+          <!-- 普通模式：标签 -->
+          <div v-else class="attribute-label">
             <span>{{ getAttributeName(attrName) }}</span>
             <TipButton
               level="1"
               :html-content="getAttributeTipContent(attrName)"
             />
           </div>
-          <div class="attribute-controls">
+
+          <!-- 展开后的内容或普通模式的控制区 -->
+          <div v-if="!collapsible || isExpanded(attrName)" class="attribute-controls">
             <!-- 减按钮 -->
             <button
+              v-if="!isReadonly(attrName)"
               size="small"
               :class="['attr-btn', getDecreaseButtonState(attrName)]"
               @click="handleDecrease(attrName)"
             >
               <el-icon><Minus /></el-icon>
             </button>
-            
+
             <!-- 数值显示 -->
-            <span class="attribute-value" :class="{ 'out-of-range': isOutOfNormalRange(attrName) }">
+            <span class="attribute-value" :class="{ 'out-of-range': isOutOfNormalRange(attrName), 'readonly': isReadonly(attrName) }">
               {{ getCurrentAttributeValue(attrName) }}
             </span>
-            
+
             <!-- 加按钮 -->
             <button
+              v-if="!isReadonly(attrName)"
               size="small"
               :class="['attr-btn', getIncreaseButtonState(attrName)]"
               @click="handleIncrease(attrName)"
             >
               <el-icon><Plus /></el-icon>
             </button>
+
+            <!-- 只读提示 -->
+            <span v-if="isReadonly(attrName)" class="readonly-hint">芯片</span>
+
             <!-- 调整值显示 -->
             <ModifierDisplay
               :base-value="getCurrentAttributeValue(attrName)"
@@ -59,6 +93,7 @@ import { Plus, Minus } from "@element-plus/icons-vue";
 import TipButton from "./TipButton.vue";
 import ModifierDisplay from "./ModifierDisplay.vue";
 import { useModifiers } from "@/composables/useModifiers";
+import { ArrowDown, ArrowRight } from "@element-plus/icons-vue";
 
 /**
  * Props 定义
@@ -70,6 +105,8 @@ import { useModifiers } from "@/composables/useModifiers";
  * @property {String} sourceInfo - 属性点来源信息
  * @property {Object} normalRange - 普通范围 { min: 0, max: 4 }
  * @property {Object} specialRanges - 特殊范围定义 { key: { min: 0, max: 5, requiresConfirm: true } }
+ * @property {Boolean} collapsible - 是否可展开/收起
+ * @property {Boolean} hideZero - 是否隐藏值为0的项
  */
 const props = defineProps({
   attributePoints: {
@@ -108,6 +145,21 @@ const props = defineProps({
   modifierRules: {
     type: Array,
     default: () => []
+  },
+  // 是否可展开/收起
+  collapsible: {
+    type: Boolean,
+    default: false
+  },
+  // 是否隐藏值为0的项
+  hideZero: {
+    type: Boolean,
+    default: false
+  },
+  // 只读属性列表（这些属性无法调整）
+  readonlyAttributes: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -119,6 +171,44 @@ const { getModifierFor, getModifierDetailsFor } = useModifiers(props.modifierRul
 // 待确认的操作状态
 const pendingIncrease = ref({});
 const pendingDecrease = ref({});
+
+// 展开状态（用于 collapsible 模式）
+const expandedItems = ref({});
+
+// 切换展开状态
+const toggleExpand = (attrName) => {
+  if (!props.collapsible) return;
+  expandedItems.value[attrName] = !expandedItems.value[attrName];
+};
+
+// 检查是否展开
+const isExpanded = (attrName) => {
+  return !!expandedItems.value[attrName];
+};
+
+// 获取总值（基础值 + 调整值）
+const getTotalValue = (attrName) => {
+  const baseValue = getCurrentAttributeValue(attrName);
+  const modifier = getModifierFor(attrName);
+  return baseValue + modifier;
+};
+
+// 动态获取属性/技能顺序（过滤掉值为0的项）
+const filteredAttributeOrder = computed(() => {
+  const keys = Object.keys(props.attributeData);
+  const order = keys.length > 0 ? keys : Object.keys(props.attributes);
+
+  if (!props.hideZero) {
+    return order;
+  }
+
+  // 隐藏值为0的项，但保留有调整值的项
+  return order.filter(key => {
+    const value = getCurrentAttributeValue(key);
+    const modifier = getModifierFor(key);
+    return value > 0 || modifier !== 0;
+  });
+});
 
 // 动态获取属性/技能顺序
 const attributeOrder = computed(() => {
@@ -172,6 +262,11 @@ const allocatedPoints = computed(() => {
 const remainingPoints = computed(() => {
   return props.attributePoints - allocatedPoints.value;
 });
+
+// 检查是否只读
+const isReadonly = (attrName) => {
+  return props.readonlyAttributes.includes(attrName.toString())
+}
 
 // 获取当前属性值
 const getCurrentAttributeValue = (attrName) => {
@@ -394,6 +489,69 @@ $cyber-red: #ff5252;
   &:last-child {
     border-bottom: none;
   }
+
+  // 可展开模式样式
+  .collapsible & {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba($cyber-cyan, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+
+    &.expanded {
+      border-color: rgba($cyber-cyan, 0.3);
+    }
+
+    &.has-value {
+      background: rgba($cyber-cyan, 0.05);
+    }
+  }
+}
+
+// 可展开模式的头部
+.attribute-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba($cyber-cyan, 0.05);
+  }
+}
+
+// 可展开模式的摘要区
+.attribute-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .attribute-value {
+    font-size: 16px;
+    font-weight: bold;
+    color: $cyber-cyan;
+    font-family: "Courier New", monospace;
+    min-width: 24px;
+    text-align: center;
+
+    &.has-modifier {
+      color: #ffd700;
+    }
+
+    &.out-of-range {
+      color: $cyber-red;
+    }
+  }
+
+  .expand-icon {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+  }
 }
 
 .attribute-label {
@@ -409,6 +567,14 @@ $cyber-red: #ff5252;
   display: flex;
   align-items: center;
   gap: 12px;
+
+  // 可展开模式的控制区样式
+  .collapsible .attribute-row.expanded & {
+    padding: 12px;
+    padding-top: 0;
+    border-top: 1px solid rgba($cyber-cyan, 0.1);
+    background: rgba(0, 0, 0, 0.1);
+  }
 }
 
 .attr-btn {
@@ -529,5 +695,21 @@ $cyber-red: #ff5252;
   &:hover {
     color: $cyber-cyan;
   }
+}
+
+// 只读属性样式
+.attribute-value.readonly {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.readonly-hint {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(#ffd700, 0.15);
+  border: 1px solid rgba(#ffd700, 0.3);
+  border-radius: 4px;
+  color: #ffd700;
+  margin-left: 4px;
 }
 </style>

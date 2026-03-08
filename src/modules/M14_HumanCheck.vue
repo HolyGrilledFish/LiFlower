@@ -221,6 +221,42 @@ function hasSpecialization(skillId) {
   return skillIds.value.includes(skillId.toString())
 }
 
+// ==================== 技能调整值规则 ====================
+// 调整值规则定义（可根据需要扩展）
+const skillModifierRules = [
+  // 示例规则：特质"血债幻痛"(ID=13) -> 战斗技能(ID=1,3) +1
+  // {
+  //   id: 'phantom_pain_combat',
+  //   name: '血债幻痛',
+  //   watch: () => outputsStore.getModuleOutput('M1')?.traitIds,
+  //   match: (traitIds) => traitIds && traitIds.includes('13'),
+  //   value: 1,
+  //   targetSkills: ['1', '3'] // 体术、枪械
+  // }
+]
+
+// 获取技能调整值
+function getSkillModifier(skillId) {
+  if (!skillId) return 0
+  const skillIdStr = skillId.toString()
+  let modifier = 0
+
+  skillModifierRules.forEach(rule => {
+    const currentValue = rule.watch ? rule.watch() : null
+    let matched = false
+    if (typeof rule.match === 'function') {
+      matched = rule.match(currentValue)
+    } else if (rule.match !== undefined) {
+      matched = currentValue === rule.match
+    }
+    if (matched && rule.targetSkills.includes(skillIdStr)) {
+      modifier += rule.value
+    }
+  })
+
+  return modifier
+}
+
 // 更新工具加值
 function updateToolBonus(entryId, value) {
   const entry = combatEntries.value.find(e => e.id === entryId)
@@ -281,15 +317,18 @@ const computedEntries = computed(() => {
     // 获取技能基础值（从M5读取）
     const skillBaseValue = skillTotals.value[entry.skillId] || 0
 
+    // 计算技能调整值
+    const skillModifier = getSkillModifier(entry.skillId)
+
     // 计算技能加值（专精额外加成）
     let specializationValue = 0
     // 如果有专精规则且玩家有该专长且激活了专精按钮
     if (entry.hasSpecializationRule && hasSpecialization(entry.skillId) && entry.specializationActive) {
       specializationValue = entry.specializationBonus
     }
-    
-    // 技能总值 = 基础值 + 专精加成
-    entry.skillBonus = skillBaseValue + specializationValue
+
+    // 技能总值 = 基础值 + 专精加成 + 调整值
+    entry.skillBonus = skillBaseValue + specializationValue + skillModifier
 
     // 计算总值 = 属性 + 技能 + 工具 + 优势
     let totalValue = entry.attributeBonus + entry.skillBonus + entry.toolBonus
@@ -299,7 +338,7 @@ const computedEntries = computed(() => {
 
     // 判断是否显示专精按钮（有规则且有专长）
     const hasSpec = entry.hasSpecializationRule && hasSpecialization(entry.skillId)
-    
+
     // 如果不显示专精按钮，重置专精状态为未激活
     if (!hasSpec && entry.specializationActive) {
       entry.specializationActive = false
@@ -323,6 +362,9 @@ const computedCheckEntries = computed(() => {
     // 获取技能基础值（从M5读取）
     const skillBaseValue = entry.skillId ? (skillTotals.value[parseInt(entry.skillId)] || skillTotals.value[entry.skillId] || 0) : 0
 
+    // 计算技能调整值
+    const skillModifier = entry.skillId ? getSkillModifier(entry.skillId) : 0
+
     // 计算技能加值（专精额外加成）
     let specializationValue = 0
     // 如果有专精规则且玩家有该专长且激活了专精按钮
@@ -330,8 +372,8 @@ const computedCheckEntries = computed(() => {
       specializationValue = entry.specializationBonus
     }
 
-    // 技能总值 = 基础值 + 专精加成
-    entry.skillBonus = skillBaseValue + specializationValue
+    // 技能总值 = 基础值 + 专精加成 + 调整值
+    entry.skillBonus = skillBaseValue + specializationValue + skillModifier
 
     // 计算总值 = 属性 + 技能 + 工具 + 优势
     let totalValue = entry.attributeBonus + entry.skillBonus + entry.toolBonus

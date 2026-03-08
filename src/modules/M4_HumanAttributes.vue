@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useCharacterStore } from '@/stores/character'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import { useAutoOutput } from '@/composables/useModuleOutput'
@@ -166,8 +166,8 @@ const handleAttributesUpdate = (newAttrs) => {
 }
 
 // 调整值规则
-// 旧网信徒（出身ID=6）+ 大脑电子化 = 算力+2
 const modifierRules = [
+  // 旧网信徒（出身ID=6）+ 大脑电子化 = 算力+2
   {
     id: 'oldnet_cyberbrain_compute',
     name: '旧网信徒电子脑',
@@ -178,6 +178,49 @@ const modifierRules = [
     match: (data) => data.backgroundId === '6' && data.hasCyberBrain === true,
     value: 2,
     target: 'compute'
+  },
+  // 危险保险箱（ID=36）-> 算力+4
+  {
+    id: 'dangerous_safe_compute',
+    name: '危险保险箱',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('36') || traits.includes(36)),
+    value: 4,
+    target: 'compute'
+  },
+  // 梦之匣（ID=30）-> 结构、出力、运动-5
+  {
+    id: 'dream_box_structure',
+    name: '梦之匣',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('30') || traits.includes(30)),
+    value: -5,
+    target: 'structure'
+  },
+  {
+    id: 'dream_box_torque',
+    name: '梦之匣',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('30') || traits.includes(30)),
+    value: -5,
+    target: 'torque'
+  },
+  {
+    id: 'dream_box_athletics',
+    name: '梦之匣',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('30') || traits.includes(30)),
+    value: -5,
+    target: 'athletics'
+  },
+  // 古法炼体（ID=19）-> 出力+2
+  {
+    id: 'ancient_bodybuilding_torque',
+    name: '古法炼体',
+    watch: () => outputsStore.getModuleOutput('M1').traits,
+    match: (traits) => traits && (traits.includes('19') || traits.includes(19)),
+    value: 2,
+    target: 'torque'
   }
 ]
 
@@ -186,6 +229,37 @@ const { getModifierFor } = useModifiers(modifierRules)
 
 // 属性键名列表
 const attributeKeys = ['structure', 'torque', 'athletics', 'compute', 'information', 'power']
+
+// 获取各属性的最大可分配值（考虑调整值）
+const getMaxAllocatable = (attrName) => {
+  const modifier = getModifierFor(attrName)
+  // 最大可分配值 = 5 - 调整值（但不能小于0）
+  return Math.max(0, 5 - modifier)
+}
+
+// 监听调整值变化，如果变化则清空对应属性
+const previousModifiers = ref({})
+
+watch(() => attributeKeys.map(key => getModifierFor(key)), (newModifiers) => {
+  attributeKeys.forEach((key, index) => {
+    const newModifier = newModifiers[index]
+    const oldModifier = previousModifiers.value[key]
+
+    // 如果调整值发生变化且属性值超过新的最大值，清空属性
+    if (oldModifier !== undefined && oldModifier !== newModifier) {
+      const maxAllocatable = Math.max(0, 5 - newModifier)
+      const currentValue = characterStore.humanAttributes[key] || 0
+
+      if (currentValue > maxAllocatable) {
+        const newAttributes = { ...characterStore.humanAttributes }
+        newAttributes[key] = 0
+        characterStore.updateHumanAttributes(newAttributes)
+      }
+    }
+
+    previousModifiers.value[key] = newModifier
+  })
+}, { immediate: true, deep: true })
 
 // 计算每个属性的总值（基础值 + 调整值）
 const attributeTotals = computed(() => {

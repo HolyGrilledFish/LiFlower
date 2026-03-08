@@ -84,21 +84,27 @@ const filledDots = computed(() => {
   return Math.min(props.modelValue, totalDots.value)
 })
 
-// 监听总数变化，自动填满格子
-watch(totalDots, (newTotal, oldTotal) => {
-  if (newTotal > oldTotal) {
-    // 总数增加时，自动填满所有格子
-    emit('update:modelValue', newTotal)
-  } else if (props.modelValue > newTotal) {
+// 监听计算值变化，自动填满格子
+watch(() => props.calculatedValue, (newVal, oldVal) => {
+  if (newVal > oldVal) {
+    // 计算值增加时，自动填满所有格子
+    emit('update:modelValue', totalDots.value)
+  }
+}, { immediate: true })
+
+// 监听总数变化，确保涂亮数不超过总数
+watch(totalDots, (newTotal) => {
+  if (props.modelValue > newTotal) {
     // 总数减少时，如果涂亮数超过总数，调整到总数
+    emit('update:modelValue', newTotal)
+  } else if (props.modelValue === 0 && newTotal > 0) {
+    // 初始状态，自动填满
     emit('update:modelValue', newTotal)
   }
 }, { immediate: true })
 
 const handleClick = (n) => {
   // 点击逻辑：切换涂亮状态
-  // 如果点击的位置 <= 当前涂亮数，设置为点击位置-1（取消该格子）
-  // 如果点击的位置 > 当前涂亮数，设置为点击位置（涂亮到该位置）
   const newFilled = filledDots.value >= n ? n - 1 : n
   emit('update:modelValue', newFilled)
 }

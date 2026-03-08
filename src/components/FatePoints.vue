@@ -32,20 +32,47 @@ const props = defineProps({
   modelValue: {
     type: Number,
     default: 3
+  },
+  humanityValue: {
+    type: Number,
+    default: 0
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-// 默认上限3，默认涂满
-const defaultMax = 3
-const maxPoints = ref(defaultMax)
+// 基础值3
+const baseValue = 3
+
+// 命运点数总值 = 3 + 人性技能值（下限为3）
+const calculatedMax = computed(() => {
+  const total = baseValue + props.humanityValue
+  return Math.max(3, total)
+})
+
+// 手动增加的上限值
+const manualBonus = ref(0)
+
+// 总上限 = 计算值 + 手动增加值
+const maxPoints = computed(() => {
+  return calculatedMax.value + manualBonus.value
+})
+
 const currentPoints = ref(props.modelValue)
 
 // 同步外部值
 watch(() => props.modelValue, (val) => {
   currentPoints.value = val
 }, { immediate: true })
+
+// 监听基础值变化，自动涂满新增的格子
+watch(calculatedMax, (newVal, oldVal) => {
+  if (newVal > oldVal) {
+    // 基础上限增加了，自动涂满新增的格子
+    currentPoints.value = maxPoints.value
+    emit('update:modelValue', currentPoints.value)
+  }
+})
 
 // 是否可以增加上限（当前涂满时可用）
 const canAdd = computed(() => {
@@ -54,14 +81,13 @@ const canAdd = computed(() => {
 
 const handleClick = (n) => {
   // 点击逻辑：切换涂亮状态
-  // 如果点击的位置 <= 当前涂亮数，设置为点击位置-1（取消该格子）
-  // 如果点击的位置 > 当前涂亮数，设置为点击位置（涂亮到该位置）
   const newPoints = currentPoints.value >= n ? n - 1 : n
 
-  // 如果取消涂格子导致超出上限，减少上限
-  if (newPoints < maxPoints.value && maxPoints.value > defaultMax) {
-    // 新的上限 = max(默认上限, 新的涂亮数)
-    maxPoints.value = Math.max(defaultMax, newPoints)
+  // 如果取消涂格子导致低于计算值，减少手动增加值
+  if (newPoints < calculatedMax.value) {
+    manualBonus.value = 0
+  } else if (newPoints < maxPoints.value) {
+    manualBonus.value = newPoints - calculatedMax.value
   }
 
   currentPoints.value = newPoints
@@ -71,8 +97,8 @@ const handleClick = (n) => {
 const addMax = () => {
   if (!canAdd.value) return
 
-  // 增加上限，并自动涂亮新格子
-  maxPoints.value += 1
+  // 增加手动增加值
+  manualBonus.value += 1
   currentPoints.value = maxPoints.value
   emit('update:modelValue', currentPoints.value)
 }

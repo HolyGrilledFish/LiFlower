@@ -153,17 +153,51 @@ const attributes = computed(() => {
   return moduleOutputs.outputs.M3?.attributeTotals || {}
 })
 
-// 获取 M7 技能加成
-const skillBonuses = computed(() => {
-  return moduleOutputs.outputs.M7?.skillBonuses || []
+// 获取 M7 技能总值（已包含芯片和特质调整值）
+const skillValues = computed(() => {
+  return moduleOutputs.outputs.M7?.skillValues || {}
 })
 
-// 获取技能值（根据 M7 的 skillBonuses 计算）
+// 获取技能总值（直接读取 M7 输出）
 function getSkillValue(skillId) {
   if (!skillId) return 0
-  const bonus = skillBonuses.value.find(b => b.skillId === skillId.toString())
-  if (!bonus) return 0
-  return bonus.upgraded ? 3 : 2
+  return skillValues.value[skillId.toString()] || 0
+}
+
+// ==================== 技能调整值规则 ====================
+// 调整值规则定义
+const skillModifierRules = [
+  // 血债幻痛（ID=13）-> 所有战斗技能 +1
+  {
+    id: 'phantom_pain_combat',
+    name: '血债幻痛',
+    watch: () => moduleOutputs.outputs.M2?.traitIds,
+    match: (traitIds) => traitIds && traitIds.includes('13'),
+    value: 1,
+    targetSkills: ['1', '2', '3', '4'] // 体术、闪避、枪械、掩护
+  }
+]
+
+// 获取技能调整值
+function getSkillModifier(skillId) {
+  if (!skillId) return 0
+  const skillIdStr = skillId.toString()
+  let modifier = 0
+
+  skillModifierRules.forEach(rule => {
+    const currentValue = rule.watch ? rule.watch() : null
+    let matched = false
+    if (typeof rule.match === 'function') {
+      matched = rule.match(currentValue)
+    } else if (rule.match !== undefined) {
+      matched = currentValue === rule.match
+    }
+    if (matched && rule.targetSkills.includes(skillIdStr)) {
+      modifier += rule.value
+    }
+  })
+
+  return modifier
 }
 
 // 战斗数据条目状态
@@ -251,9 +285,14 @@ const computedEntries = computed(() => {
     const attributeValue = attributes.value[entry.attributeId] || 0
     entry.attributeBonus = attributeValue
 
-    // 获取技能值（从 M7 的 skillBonuses 计算）
-    const skillValue = getSkillValue(entry.skillId)
-    entry.skillBonus = skillValue
+    // 获取技能基础值（从 M7 读取）
+    const skillBaseValue = getSkillValue(entry.skillId)
+
+    // 计算 M15 特有的技能调整值（如血债幻痛）
+    const skillModifier = getSkillModifier(entry.skillId)
+
+    // 技能总值 = M7基础值 + M15调整值
+    entry.skillBonus = skillBaseValue + skillModifier
 
     // 计算总值 = 属性 + 技能 + 工具 + 优势
     let totalValue = entry.attributeBonus + entry.skillBonus + entry.toolBonus
@@ -284,9 +323,14 @@ const computedCheckEntries = computed(() => {
     const attributeValue = entry.attributeId ? (attributes.value[entry.attributeId] || 0) : 0
     entry.attributeBonus = attributeValue
 
-    // 获取技能值（从 M7 的 skillBonuses 计算）
-    const skillValue = getSkillValue(entry.skillId)
-    entry.skillBonus = skillValue
+    // 获取技能基础值（从 M7 读取）
+    const skillBaseValue = getSkillValue(entry.skillId)
+
+    // 计算 M15 特有的技能调整值（如血债幻痛）
+    const skillModifier = getSkillModifier(entry.skillId)
+
+    // 技能总值 = M7基础值 + M15调整值
+    entry.skillBonus = skillBaseValue + skillModifier
 
     // 计算总值 = 属性 + 技能 + 工具 + 优势
     let totalValue = entry.attributeBonus + entry.skillBonus + entry.toolBonus
