@@ -12,8 +12,9 @@
     raw-content
   >
     <template #content>
+      <!-- 优先使用 htmlContent，否则将 content 作为 HTML 渲染 -->
       <div v-if="htmlContent" v-html="htmlContent"></div>
-      <div v-else>{{ content }}</div>
+      <div v-else v-html="parsedContent"></div>
     </template>
     <span class="tip-button" :class="`level-${level}`">
       <slot />
@@ -53,6 +54,21 @@ const props = defineProps({
 // 是否有内容
 const hasContent = computed(() => {
   return props.content || props.htmlContent
+})
+
+// 解析 [AUTO] 和 [MANUAL] 标记
+const parsedContent = computed(() => {
+  if (!props.content) return ''
+  
+  let text = props.content
+  
+  // 解析 [AUTO] 标记 -> 青色
+  text = text.replace(/\[AUTO\](.*?)(?=\[|$)/g, '<span class="effect-auto">$1</span>')
+  
+  // 解析 [MANUAL] 标记 -> 橙色
+  text = text.replace(/\[MANUAL\](.*?)(?=\[|$)/g, '<span class="effect-manual">$1</span>')
+  
+  return text
 })
 </script>
 
@@ -136,10 +152,22 @@ $cyber-purple: #bc13fe;
     @media (max-width: 768px) {
       max-width: 280px !important;
     }
-    
+
     // 确保内容区域也支持换行
     .el-popper__content {
       white-space: pre-line !important;
+    }
+    
+    // 自动计算效果 - 青色
+    .effect-auto {
+      color: #00f3ff;
+      font-weight: 500;
+    }
+    
+    // 需手动调整效果 - 橙色
+    .effect-manual {
+      color: #ff9f43;
+      font-style: italic;
     }
   }
 }

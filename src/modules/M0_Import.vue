@@ -40,12 +40,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import TipButton from '@/components/TipButton.vue'
 import ModuleHeader from '@/components/ModuleHeader.vue'
 import { useCharacterStore } from '@/stores/character'
 import { useAutoOutput } from '@/composables/useModuleOutput'
+import { getM0Cache } from '@/utils/cacheManager'
 
 const characterStore = useCharacterStore()
 const importCode = ref('')
@@ -60,6 +61,19 @@ const characterName = computed({
 useAutoOutput({
   characterName,
   hasImportCode: computed(() => importCode.value !== '')
+})
+
+// 从缓存恢复
+onMounted(() => {
+  const cache = getM0Cache()
+  if (cache?.characterName) {
+    characterStore.setCharacterName(cache.characterName)
+  }
+})
+
+// 监听变化，触发保存
+watch(() => characterStore.characterName, () => {
+  window.dispatchEvent(new CustomEvent('liflower-save-cache'))
 })
 
 const importCharacter = () => {

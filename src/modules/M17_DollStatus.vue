@@ -94,15 +94,28 @@ const skillValues = computed(() => {
   return moduleOutputs.outputs.M7?.skillValues || {}
 })
 
+// 读取 M7 输出（专利芯片列表）
+const m7Output = computed(() => moduleOutputs.outputs.M7 || {})
+
 // 获取技能总值（直接读取 M7 输出）
 function getSkillValue(skillId) {
   if (!skillId) return 0
   return skillValues.value[skillId.toString()] || 0
 }
 
-// HP 自动调整值（雪狼企业 ID=3 时 +4）
+// HP 自动调整值
 const hpAutoAdjust = computed(() => {
-  return m2Output.value.manufacturerId === 3 ? 4 : 0
+  let adjust = 0
+  // 雪狼企业 ID=3 时 +4
+  if (m2Output.value.manufacturerId === 3) {
+    adjust += 4
+  }
+  // 损伤管理算法芯片（ID=9）时 +4
+  const patentChips = m7Output.value?.patentChips || []
+  if (patentChips.includes(9) || patentChips.includes('9')) {
+    adjust += 4
+  }
+  return adjust
 })
 
 // HP 基础值 = 8 + 结构值 * 2 + 自动调整

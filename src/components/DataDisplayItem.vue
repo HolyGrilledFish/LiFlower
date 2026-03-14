@@ -9,7 +9,7 @@
     <span v-if="showLabel && label && (showName || showContent)" class="data-separator">：</span>
     <span v-if="showName && name" class="data-name">{{ name }}</span>
     <span v-if="showName && name && showContent && content" class="data-separator">：</span>
-    <span v-if="showContent && content" class="data-content">{{ content }}</span>
+    <span v-if="showContent && content" class="data-content" v-html="content"></span>
   </div>
 </template>
 

@@ -72,7 +72,7 @@ const currentBackground = computed(() => {
   return backgroundData.find(item => item.id.toString() === bgId.toString())
 })
 
-// 是否为"无意义一代"
+// 是否为"无意义一代"出身（ID=1）
 const isSuperfluousGeneration = computed(() => {
   return currentBackground.value?.id === 1
 })
@@ -102,27 +102,22 @@ const humanityBonus = computed(() => {
 // ==================== 可用属性点计算 ====================
 // 规则优先级：
 // 1. 忒修斯之船（ID=29）：可用属性点 = 15 + 人性负值（每-1人性=+1属性）
-// 2. 非"无意义一代"：可用属性点 = 0
-// 3. "无意义一代"：可用属性点 = min(5, M5剩余技能点)
+// 2. 无意义一代（出身ID=1）：可用属性点 = 5（技能点兑换，上限5点）
+// 3. 默认：可用属性点 = 0（普通人类没有额外属性点）
 
 const totalAttributePoints = computed(() => {
   // 优先级1：忒修斯之船
-  // 基础15点 + 人性负值转化（每-1人性=+1属性点）
   if (isTheseusShip.value) {
     return 15 + humanityBonus.value
   }
 
-  // 优先级2：非无意义一代
-  if (!isSuperfluousGeneration.value) {
-    return 0
+  // 优先级2：无意义一代
+  if (isSuperfluousGeneration.value) {
+    return 5
   }
 
-  // 优先级3：无意义一代规则
-  const m5Used = m5Data.value.usedSkillPoints || 0
-  const m5Remaining = m5Data.value.remainingSkillPoints ?? 15
-  const maxAllowedByTotal = 15 - m5Used
-  const baseAvailable = Math.min(5, m5Remaining)
-  return Math.min(baseAvailable, maxAllowedByTotal)
+  // 默认：0点（普通人类没有额外属性点）
+  return 0
 })
 
 // 计算已分配属性点
@@ -133,24 +128,6 @@ const allocatedPoints = computed(() => {
 // 计算剩余可用属性点
 const remainingPoints = computed(() => {
   return totalAttributePoints.value - allocatedPoints.value
-})
-
-// 总消耗检查：已分配属性点超过可用上限时，清空属性点
-// 只在人类整备模式下生效
-watch([allocatedPoints, totalAttributePoints], ([allocated, available]) => {
-  if (modeStore.currentMode !== 'human-prep') return
-  
-  if (allocated > available) {
-    // 清空属性点选择
-    characterStore.updateAttributes({
-      structure: 0,
-      torque: 0,
-      athletics: 0,
-      compute: 0,
-      information: 0,
-      power: 0
-    })
-  }
 })
 
 // 处理属性更新

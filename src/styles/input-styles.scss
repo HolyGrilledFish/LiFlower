@@ -90,13 +90,47 @@ $cyber-dark: #0a0a0f;
 
 // 效果说明文字（带左边框的强调样式）
 .cyber-effect-text {
-  margin-top: 8px;
-  padding: 8px 0;
-  color: rgba(0, 243, 255, 0.8);
+  margin-top: 6px;
+  padding: 10px;
+  color: rgba(0, 243, 255, 0.9);
   font-size: 13px;
   font-style: italic;
-  border-left: 3px solid rgba(0, 243, 255, 0.3);
-  padding-left: 12px;
+  border-left: 3px solid rgba(0, 243, 255, 0.5);
   line-height: 1.6;
-  font-family: "Courier New", "Consolas", monospace;
+  font-family: "Rajdhani", "Noto Sans SC", "PingFang SC", sans-serif;
+  white-space: pre-line;
+  background: rgba(0, 243, 255, 0.05);
+  border-radius: 0 4px 4px 0;
+
+  // 列表样式（无标记，无缩进）
+  ul, ol {
+    margin: 0;
+    padding: 0;
+
+    li {
+      margin: 0;
+      list-style-type: none;
+    }
+  }
+
+  // 效果条目（用于多条效果）
+  .effect-item {
+    margin: 3px 0;
+  }
+
+  // 自动计算效果 - 青色
+  .effect-auto,
+  :deep(.effect-auto) {
+    color: #00f3ff;
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  // 需手动调整效果 - 橙色
+  .effect-manual,
+  :deep(.effect-manual) {
+    color: #ff9f43;
+    font-weight: 600;
+    font-style: italic;
+  }
 }

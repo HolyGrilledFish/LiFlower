@@ -51,6 +51,12 @@
         :show-content="item.showContent"
       />
     </div>
+
+    <!-- 专长展示 -->
+    <div v-if="parsedTalentsOutput && parsedTalentsOutput.length > 0" class="cyber-effect-text talents-section">
+      <div class="talents-title">专长</div>
+      <div class="talents-content" v-html="parsedTalentsOutput"></div>
+    </div>
   </div>
 </template>
 
@@ -58,8 +64,10 @@
 import { computed } from 'vue'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import DataDisplayItem from '@/components/DataDisplayItem.vue'
+import TipButton from '@/components/TipButton.vue'
 import ModuleHeader from '@/components/ModuleHeader.vue'
 import config from '@/data/basicInfoConfig.json'
+import { extractManualText, extractAutoText, parseEffectText } from '@/utils/effectParser'
 
 const moduleOutputs = useModuleOutputsStore()
 
@@ -103,9 +111,13 @@ const displayItems = computed(() => {
       }
 
       // 获取内容值（如果有 contentField，否则如果 showName 为 false，则 sourceField 作为内容）
-      const contentValue = item.contentField
+      const rawContent = item.contentField
         ? (moduleData[item.contentField] || '')
         : (!item.showName && item.showContent) ? nameValue : ''
+      // 出身/角色阐述效果只显示 [MANUAL] 部分
+      const manualContent = item.contentField ? extractManualText(rawContent) : rawContent
+      // 如果没有 [MANUAL] 内容，显示提示
+      const contentValue = item.contentField ? (manualContent || '效果已自动计入数据') : rawContent
 
       return {
         id: item.id,
@@ -131,9 +143,24 @@ const traitItems = computed(() => {
     .map(item => {
       const moduleData = moduleOutputs.outputs[item.sourceModule] || {}
       const nameValue = moduleData[item.sourceField] || ''
-      const contentValue = item.contentField
+      const rawContent = item.contentField
         ? (moduleData[item.contentField] || '')
         : ''
+      // 特质效果处理：
+      // 1. 优先显示 [MANUAL] 部分
+      // 2. 如果没有 [MANUAL] 但有 [AUTO]，显示"效果已自动计入数据"
+      // 3. 如果都没有（如自由特质），显示原始内容
+      const manualContent = extractManualText(rawContent)
+      const autoContent = extractAutoText(rawContent)
+      let contentValue = ''
+      
+      if (manualContent) {
+        contentValue = manualContent
+      } else if (autoContent) {
+        contentValue = '效果已自动计入数据'
+      } else if (rawContent) {
+        contentValue = rawContent
+      }
 
       return {
         id: item.id,
@@ -145,6 +172,35 @@ const traitItems = computed(() => {
         showContent: item.showContent
       }
     }).filter(item => item.name || item.content)
+})
+
+// 从 M6 获取专长数据并解析
+const parsedTalentsOutput = computed(() => {
+  const talents = moduleOutputs.outputs.M6?.talents || []
+  if (!talents || talents.length === 0) return ''
+  
+  const lines = talents.map(talent => {
+    // 格式：【专长名称（专长类型）】：【专长内容】【tip】
+    const namePart = talent.name || '未命名专长'
+    const typePart = talent.skillName || talent.skill || ''
+    const contentPart = talent.limitation || ''
+    const tipPart = talent.description || ''
+    
+    let result = `<strong>${namePart}</strong>`
+    if (typePart) {
+      result += `（${typePart}）`
+    }
+    result += ':'
+    if (contentPart) {
+      result += ` ${contentPart}`
+    }
+    if (tipPart) {
+      result += ` <TipButton level="1" content="${tipPart.replace(/"/g, '&quot;')}" />`
+    }
+    return result
+  })
+  
+  return lines.join('<br>')
 })
 </script>
 
@@ -225,6 +281,27 @@ $cyber-purple: #bc13fe;
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  // 专长展示区域
+  .talents-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba($cyber-cyan, 0.15);
+  }
+
+  .talents-title {
+    color: $cyber-cyan;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: "Courier New", monospace;
+    margin-bottom: 8px;
+  }
+
+  .talents-content {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 13px;
+    line-height: 1.6;
   }
 }
 </style>

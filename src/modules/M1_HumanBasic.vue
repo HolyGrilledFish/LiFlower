@@ -6,21 +6,26 @@
 -->
 <template>
   <div class="module-human-basic">
-    <h3 class="module-title">人类基础信息</h3>
+    <ModuleHeader title="人类基础信息" subtitle="Human Basic Info" />
 
     <el-form label-position="top">
       <!-- 角色名称（与 M0 同步） -->
-      <el-form-item label="角色名称" required>
-        <el-input
-          v-model="characterStore.characterName"
-          placeholder="请输入角色名称"
-          class="cyber-input-short"
-        />
+      <el-form-item>
+        <div class="form-row">
+          <span class="field-label">角色名称</span>
+          <el-input
+            v-model="characterStore.characterName"
+            placeholder="请输入角色名称"
+            class="cyber-input-short"
+            style="flex: 1"
+          />
+        </div>
       </el-form-item>
 
       <!-- 人类出身 -->
-      <el-form-item label="人类出身" required>
+      <el-form-item>
         <div class="form-row">
+          <span class="field-label">人类出身</span>
           <CyberSelect
             v-model="selectedBackground"
             placeholder="请选择出身背景"
@@ -28,14 +33,21 @@
             style="flex: 1"
           />
           <TipButton level="3" :content="currentBackgroundDesc">
-            出身说明
+            
           </TipButton>
         </div>
-        <!-- 效果说明文字 -->
-        <div v-if="currentBackgroundEffect" class="effect-text">
-          {{ currentBackgroundEffect }}
-        </div>
       </el-form-item>
+
+      <!-- 效果说明文字（独立全宽区域） -->
+      <div v-if="currentBackgroundEffect" class="effect-text-wrapper">
+        <div class="cyber-effect-text" v-html="parseEffectText(currentBackgroundEffect)"></div>
+      </div>
+      <!-- 可生产规格限制 -->
+      <div v-if="currentBackgroundSpecs && currentBackgroundSpecs.length > 0" class="effect-text-wrapper">
+        <div class="cyber-effect-text">
+          <strong>可用人形规格：</strong>{{ currentBackgroundSpecs.join('、') }}
+        </div>
+      </div>
 
       <!-- 可展开的角色阐述 -->
       <el-form-item class="character-desc-item">
@@ -76,8 +88,7 @@
                   />
                 </div>
                 <!-- 普通特质：显示效果描述 -->
-                <div v-else-if="trait.effect" class="effect-text trait-effect">
-                  {{ trait.effect }}
+                <div v-else-if="trait.effect" class="cyber-effect-text trait-effect" v-html="parseEffectText(trait.effect)">
                 </div>
               </div>
             </div>
@@ -89,12 +100,15 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import CyberSelect from "@/components/CyberSelect.vue"
 import TipButton from "@/components/TipButton.vue"
+import ModuleHeader from "@/components/ModuleHeader.vue"
 import { useCharacterStore } from "@/stores/character"
 import { useAutoOutput } from "@/composables/useModuleOutput"
+import { getM1Cache } from "@/utils/cacheManager"
+import { parseEffectText } from "@/utils/effectParser"
 
 // 导入数据
 import backgroundData from "@/data/人类起源.json"
@@ -117,17 +131,78 @@ const isCustomTrait = (traitId) => {
   return traitId === '0' || traitId === 0
 }
 
+// ==================== 从缓存恢复 ====================
+onMounted(() => {
+  // 注册本地数据到全局缓存管理器
+  if (window.liflowerCache) {
+    window.liflowerCache.registerM1(localData)
+  }
+
+  const cache = getM1Cache()
+  if (!cache) return
+
+  // 恢复出身
+  if (cache.backgroundId) {
+    characterStore.humanBackground = cache.backgroundId
+  }
+
+  // 恢复阐述
+  if (cache.description) {
+    localData.description = cache.description
+  }
+
+  // 恢复特质
+  if (cache.traits && Array.isArray(cache.traits)) {
+    cache.traits.forEach((t, index) => {
+      if (localData.traits[index]) {
+        localData.traits[index].id = t.id || ''
+        localData.traits[index].customEffect = t.custom || ''
+        // 恢复描述和效果
+        updateTraitInfo(index, t.id)
+      }
+    })
+  }
+})
+
+// 辅助函数：根据特质ID更新描述和效果
+function updateTraitInfo(index, traitId) {
+  if (!traitId) {
+    localData.traits[index].description = ''
+    localData.traits[index].effect = ''
+    return
+  }
+  if (isCustomTrait(traitId)) {
+    localData.traits[index].description = '自定义特质'
+    localData.traits[index].effect = localData.traits[index].customEffect || ''
+  } else {
+    const trait = traitsData.find(t => t.id.toString() === traitId)
+    localData.traits[index].description = trait ? trait.description : ''
+    localData.traits[index].effect = trait ? trait.effect : ''
+  }
+}
+
+// ==================== 监听变化触发保存 ====================
+watch([
+  () => characterStore.humanBackground,
+  () => localData.description,
+  () => localData.traits.map(t => t.id),
+  () => localData.traits.map(t => t.customEffect)
+], () => {
+  window.dispatchEvent(new CustomEvent('liflower-save-cache'))
+}, { deep: true })
+
 // ==================== 模块数据输出 ====================
 // 使用计算属性包装，自动同步到全局 store
 // 输出格式：M1:background=1,backgroundName=无意义一代,trait1=2,trait2=5
 
 const backgroundOutput = computed(() => {
   const bgId = characterStore.humanBackground
-  if (!bgId) return { background: '', backgroundName: '' }
+  if (!bgId) return { background: '', backgroundName: '', backgroundEffect: '' }
   const bg = backgroundData.find(item => item.id.toString() === bgId)
   return {
     background: bgId,
-    backgroundName: bg ? bg.中文名 : ''
+    backgroundName: bg ? bg.中文名 : '',
+    backgroundEffect: bg ? bg.效果描述 || '' : ''
   }
 })
 
@@ -227,6 +302,13 @@ const currentBackgroundEffect = computed(() => {
   return selected ? selected.效果描述 || "" : ""
 })
 
+// 当前出身的可生产规格
+const currentBackgroundSpecs = computed(() => {
+  if (!selectedBackground.value) return []
+  const selected = backgroundData.find(item => item.id.toString() === selectedBackground.value)
+  return selected ? selected.可生产规格 || [] : []
+})
+
 // 可用特质列表（人类显示 human+both）
 const availableTraits = computed(() => {
   return traitsData
@@ -275,34 +357,34 @@ $cyber-cyan: #00f3ff;
 $cyber-purple: #bc13fe;
 
 .module-human-basic {
-  .module-title {
-    color: $cyber-cyan;
-    font-family: "Courier New", monospace;
-    margin-bottom: 20px;
-  }
-
   .form-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
   }
 
-  // 效果说明文字样式
-  .effect-text {
-    margin-top: 8px;
-    color: rgba(0, 243, 255, 0.8);
-    font-size: 13px;
-    font-style: italic;
-    border-left: 3px solid rgba(0, 243, 255, 0.3);
-    padding-left: 12px;
-    line-height: 1.6;
+  .field-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    min-width: 70px;
+    flex-shrink: 0;
   }
 
   // 角色阐述区域
   .character-desc-item {
     :deep(.el-form-item__content) {
       width: 100%;
+    }
+  }
+
+  // 覆盖 el-form-item 的默认底部 margin，改为顶部 margin
+  :deep(.el-form-item) {
+    margin-bottom: 0;   // 下方无间距
+    margin-top: 8px;    // 上方有间距
+
+    &:first-child {
+      margin-top: 0;    // 第一个元素上方无间距
     }
   }
 
@@ -357,15 +439,26 @@ $cyber-purple: #bc13fe;
       }
     }
 
-    .trait-effect {
-      margin-left: 68px;
-      margin-top: 4px;
-    }
-
-    // 自定义特质输入框
+    // 特质效果与特质选择器对齐
+    .trait-effect,
     .custom-trait-input {
-      margin-left: 68px;
-      margin-top: 8px;
+      margin-left: 78px;  // 与 trait-label (60px) + gap (8px) + 额外间距对齐
+      margin-top: 0;      // 紧贴上方特质选择器（无间距）
+      margin-bottom: 6px; // 与下方元素留间距
+    }
+  }
+
+  // 效果文本全宽容器
+  .effect-text-wrapper {
+    width: 100%;
+    margin-top: 0;        // 紧贴上方下拉框（无间距）
+    margin-bottom: 8px;   // 与下方元素留间距
+    padding-left: 78px;   // 与 field-label (70px) + gap (8px) 对齐
+    box-sizing: border-box;
+
+    // 覆盖全局 cyber-effect-text 的 margin-top
+    .cyber-effect-text {
+      margin-top: 0;
     }
   }
 }

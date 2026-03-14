@@ -192,7 +192,7 @@ const specialRanges = computed(() => {
 
     // 实际最大值 = min(硬件上限, 5-调整值)
     const actualMax = Math.min(
-      key === 'torque' ? specialMax : effectiveNormalMax,
+      effectiveNormalMax,
       maxAllocatable
     )
 

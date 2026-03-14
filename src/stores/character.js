@@ -7,22 +7,22 @@ import { ref, computed } from 'vue'
  */
 export const useCharacterStore = defineStore('character', () => {
   // ==================== State ====================
-  
+
   /**
    * 角色名称
    */
   const characterName = ref('')
-  
+
   /**
    * 角色类型（human/doll）
    */
   const characterType = ref('')
-  
+
   /**
    * 硬件规格
    */
   const hardwareSpec = ref('')
-  
+
   /**
    * 生产企业
    */
@@ -81,21 +81,14 @@ export const useCharacterStore = defineStore('character', () => {
   })
 
   /**
-   * 技能特殊范围定义
-   */
-  const skillRanges = ref({
-    16: { min: -4, max: 4 }  // 人性技能范围 -4 ~ +4
-  })
-
-  /**
-   * 已选择的特质（人类）
-   */
-  const selectedTraits = ref(['', ''])
-
-  /**
-   * 总技能点数（人类默认15点）
+   * 总技能点数
    */
   const totalSkillPoints = ref(15)
+
+  /**
+   * 选择的特质（2个槽位）
+   */
+  const selectedTraits = ref(['', ''])
 
   // ==================== Getters ====================
 
@@ -105,97 +98,117 @@ export const useCharacterStore = defineStore('character', () => {
   const hasName = computed(() => characterName.value.trim().length > 0)
 
   /**
-   * 是否已选择硬件规格
+   * 是否有硬件规格
    */
-  const hasHardwareSpec = computed(() => hardwareSpec.value !== '')
+  const hasHardwareSpec = computed(() => hardwareSpec.value.length > 0)
 
   /**
-   * 已分配属性点总数（人形）
+   * 人形已分配属性点
    */
   const dollAllocatedPoints = computed(() => {
     return Object.values(dollAttributes.value).reduce((sum, val) => sum + val, 0)
   })
 
   /**
-   * 已分配属性点总数（人类）
+   * 人类已分配属性点
    */
   const humanAllocatedPoints = computed(() => {
     return Object.values(humanAttributes.value).reduce((sum, val) => sum + val, 0)
   })
 
   /**
-   * 剩余可用属性点（人形）
+   * 人形剩余属性点
    */
-  const dollRemainingPoints = computed(() => totalAttributePoints.value - dollAllocatedPoints.value)
+  const dollRemainingPoints = computed(() => {
+    return totalAttributePoints.value - dollAllocatedPoints.value
+  })
 
   /**
-   * 剩余可用属性点（人类）
+   * 人类剩余属性点
    */
-  const humanRemainingPoints = computed(() => totalAttributePoints.value - humanAllocatedPoints.value)
-  
+  const humanRemainingPoints = computed(() => {
+    return totalAttributePoints.value - humanAllocatedPoints.value
+  })
+
+  /**
+   * 技能范围（用于 AttributeAllocator）
+   */
+  const skillRanges = computed(() => {
+    const ranges = {}
+    for (let i = 1; i <= 16; i++) {
+      ranges[i] = { min: -4, max: 5 }
+    }
+    return ranges
+  })
+
   // ==================== Actions ====================
-  
+
   /**
    * 设置角色名称
-   * @param {string} name - 角色名称
+   * @param {String} name - 角色名称
    */
   function setCharacterName(name) {
     characterName.value = name
   }
-  
+
   /**
    * 设置角色类型
-   * @param {string} type - 角色类型 human/doll
+   * @param {String} type - 角色类型（human/doll）
    */
   function setCharacterType(type) {
     characterType.value = type
   }
-  
+
   /**
    * 设置硬件规格
-   * @param {string} spec - 硬件规格名称
-   * @param {number} points - 基础属性点数
+   * @param {String} spec - 硬件规格名称
+   * @param {Number} points - 基础属性点数
    */
-  function setHardwareSpec(spec, points) {
+  function setHardwareSpec(spec, points = 0) {
     hardwareSpec.value = spec
     baseAttributePoints.value = points
-    totalAttributePoints.value = points
-    // 重置人形属性值
-    dollAttributes.value = { structure: 0, torque: 0, athletics: 0, compute: 0, information: 0, power: 0 }
   }
 
   /**
    * 设置生产企业
-   * @param {string} mfr - 生产企业名称
-   * @param {number} bonus - 属性点加值
+   * @param {String} mfr - 生产企业名称
+   * @param {Number} bonus - 属性点加值
    */
-  function setManufacturer(mfr, bonus) {
+  function setManufacturer(mfr, bonus = 0) {
     manufacturer.value = mfr
     totalAttributePoints.value = baseAttributePoints.value + bonus
   }
 
   /**
-   * 更新人形属性值
-   * @param {Object} newAttributes - 新的属性值对象
+   * 更新人形属性
+   * @param {Object} attrs - 属性对象
    */
-  function updateDollAttributes(newAttributes) {
-    dollAttributes.value = { ...newAttributes }
+  function updateDollAttributes(attrs) {
+    dollAttributes.value = { ...dollAttributes.value, ...attrs }
   }
 
   /**
-   * 更新人类属性值
-   * @param {Object} newAttributes - 新的属性值对象
+   * 更新人类属性
+   * @param {Object} attrs - 属性对象
    */
-  function updateHumanAttributes(newAttributes) {
-    humanAttributes.value = { ...newAttributes }
+  function updateHumanAttributes(attrs) {
+    humanAttributes.value = { ...humanAttributes.value, ...attrs }
   }
 
   /**
    * 更新技能值
-   * @param {Object} newSkills - 新的技能值对象
+   * @param {Object} newSkills - 技能对象
    */
   function updateSkills(newSkills) {
-    skills.value = { ...newSkills }
+    skills.value = { ...skills.value, ...newSkills }
+  }
+
+  /**
+   * 更新属性（兼容旧代码）
+   * @param {Object} attrs - 属性对象
+   */
+  function updateAttributes(attrs) {
+    dollAttributes.value = { ...dollAttributes.value, ...attrs }
   }
 
   /**
@@ -259,6 +272,7 @@ export const useCharacterStore = defineStore('character', () => {
     updateDollAttributes,
     updateHumanAttributes,
     updateSkills,
+    updateAttributes,
     setTrait,
     resetCharacter
   }

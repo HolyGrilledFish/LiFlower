@@ -13,17 +13,19 @@
         </span>
       </template>
     </ModuleHeader>
-    <AttributeAllocator
-      :attribute-points="effectiveSkillPoints"
-      :attribute-limit="skillLimit"
-      :attributes="characterStore.skills"
-      :attribute-data="skillData"
-      :show-divider="false"
-      :normal-range="{ min: 0, max: 4 }"
-      :special-ranges="specialSkillRanges"
-      :modifier-rules="modifierRules"
-      @update:attributes="characterStore.updateSkills"
-    />
+    <div class="skills-allocator-wrapper">
+      <AttributeAllocator
+        :attribute-points="effectiveSkillPoints"
+        :attribute-limit="skillLimit"
+        :attributes="characterStore.skills"
+        :attribute-data="skillData"
+        :show-divider="false"
+        :normal-range="{ min: 0, max: 4 }"
+        :special-ranges="specialSkillRanges"
+        :modifier-rules="modifierRules"
+        @update:attributes="characterStore.updateSkills"
+      />
+    </div>
   </div>
 </template>
 
@@ -43,6 +45,21 @@ const outputsStore = useModuleOutputsStore()
 // 基础技能点数
 const baseSkillPoints = 15
 
+// 从 M4 读取剩余属性点（用于无意义一代计算）
+const m4RemainingPoints = computed(() => {
+  return outputsStore.getModuleOutput('M4')?.remainingPoints || 0
+})
+
+// 从 M1 读取出身
+const m1Background = computed(() => {
+  return outputsStore.getModuleOutput('M1')?.background || null
+})
+
+// 是否为"无意义一代"出身（ID=1）
+const isSuperfluousGeneration = computed(() => {
+  return m1Background.value === '1' || m1Background.value === 1
+})
+
 // 人性技能当前值（ID=16）
 const humanityValue = computed(() => characterStore.skills[16] || 0)
 
@@ -52,13 +69,7 @@ const humanityBonus = computed(() => {
   return humanity < 0 ? Math.abs(humanity) : 0
 })
 
-// 总技能点数（基础15 + 人性负值转化）
-const totalSkillPoints = computed(() => baseSkillPoints + humanityBonus.value)
-
-// 单项技能上限
-const skillLimit = 5
-
-// 从 M1 读取特质（检测忒修斯之船）
+// 从 M1 读取特质
 const m1Traits = computed(() => {
   return outputsStore.getModuleOutput('M1').traits || ''
 })
@@ -68,11 +79,26 @@ const isTheseusShip = computed(() => {
   return m1Traits.value.includes('29')
 })
 
-// 剩余技能点（忒修斯之船模式下强制为0）
-// 注意：使用 baseSkillPoints 计算，因为人性负值已经在 totalSkillPoints 中体现
-// 避免重复计算（如人性-2时：total=17, spent=-2, remaining=19 是错误的）
+// 总技能点数
+// 默认：基础15 + 人性负值转化
+// 无意义一代：10 + M4剩余属性点
+// 忒修斯之船：0
+const totalSkillPoints = computed(() => {
+  if (isTheseusShip.value) {
+    return 0
+  }
+  if (isSuperfluousGeneration.value) {
+    return 10 + m4RemainingPoints.value
+  }
+  return baseSkillPoints + humanityBonus.value
+})
+
+// 单项技能上限
+const skillLimit = 5
+
+// 剩余技能点
 const remainingPoints = computed(() => {
-  // 忒修斯之船：技能点归零，全部转为属性点
+  // 忒修斯之船：技能点归零
   if (isTheseusShip.value) {
     return 0
   }
@@ -81,7 +107,13 @@ const remainingPoints = computed(() => {
   for (let i = 1; i <= 16; i++) {
     spent += characterStore.skills[i] || 0
   }
-  // 使用基础15点计算，人性负值的bonus已经在 totalSkillPoints 中
+  
+  // 无意义一代：使用新的总技能点计算
+  if (isSuperfluousGeneration.value) {
+    return totalSkillPoints.value - spent
+  }
+  
+  // 默认：使用基础15点计算
   return baseSkillPoints - spent
 })
 
@@ -411,6 +443,10 @@ $cyber-cyan: #00f3ff;
 
 .module-human-skills {
   width: 100%;
+
+  .skills-allocator-wrapper {
+    width: 100%;
+  }
 
   .points-info {
     color: rgba(255, 255, 255, 0.8);

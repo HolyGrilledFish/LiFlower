@@ -81,8 +81,7 @@
     </div>
     
     <!-- 专利芯片效果显示 -->
-    <div v-if="selectedPatentChipInfo" class="cyber-effect-text chip-effect">
-      {{ selectedPatentChipInfo.effect }}
+    <div v-if="selectedPatentChipInfo" class="cyber-effect-text chip-effect" v-html="parsedChipEffect">
     </div>
   </div>
 </template>
@@ -93,6 +92,7 @@ import CyberSelect from './CyberSelect.vue'
 import patentChipsData from '@/data/patentChips.json'
 import manufacturerData from '@/data/企业技术.json'
 import skillsData from '@/data/skills.json'
+import { parseEffectText } from '@/utils/effectParser'
 
 const props = defineProps({
   modelValue: {
@@ -129,6 +129,10 @@ const props = defineProps({
   selectedPatentChipIds: {
     type: Array,
     default: () => []
+  },
+  hackMode: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -201,6 +205,27 @@ const filteredOptions = computed(() => {
 
 // 根据企业ID获取可用的专利芯片列表（过滤掉已选择的）
 const availablePatentChipsFiltered = computed(() => {
+  // 破解模式：显示所有专利芯片
+  if (props.hackMode) {
+    const allChips = patentChipsData.chips.filter(chip => {
+      if (chip.id === selectedPatentChip.value) return true
+      return !props.selectedPatentChipIds.includes(chip.id)
+    })
+    
+    const options = allChips.map(chip => ({
+      label: chip.name,
+      value: chip.id,
+      extra: chip.manufacturer
+    }))
+    
+    if (options.length === 0) {
+      return [{ label: '无可用专利芯片', value: null, disabled: true }]
+    }
+    
+    return options
+  }
+  
+  // 正常模式：只显示本企业可用的专利芯片
   if (!props.manufacturerId) {
     return [{ label: '无可用专利芯片', value: null, disabled: true }]
   }
@@ -258,6 +283,12 @@ const displayedSkillOptions = computed(() => {
 const selectedPatentChipInfo = computed(() => {
   if (!showPatentSelector.value || !selectedPatentChip.value) return null
   return patentChipsData.chips.find(c => c.id === selectedPatentChip.value)
+})
+
+// 解析芯片效果文本（支持 [AUTO] 和 [MANUAL] 标记）
+const parsedChipEffect = computed(() => {
+  if (!selectedPatentChipInfo.value) return ''
+  return parseEffectText(selectedPatentChipInfo.value.effect)
 })
 
 // 切换升级状态

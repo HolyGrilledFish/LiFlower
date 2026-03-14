@@ -57,6 +57,7 @@ import { useAutoOutput } from '@/composables/useModuleOutput'
 import TalentItem from '@/components/TalentItem.vue'
 import CyberBrainItem from '@/components/CyberBrainItem.vue'
 import ModuleHeader from '@/components/ModuleHeader.vue'
+import skillsData from '@/data/skills.json'
 
 // 大脑电子化状态
 const isCyberBrainActive = ref(false)
@@ -229,8 +230,10 @@ const talentsOutput = computed(() => {
 // 获取技能名称
 const getSkillName = (skillId) => {
   if (!skillId) return ''
-  if (skillId === 'special') return '特殊对策'
-  return skillId
+  if (skillId === 'special') return '特殊专长'
+  // 根据技能 ID 查找技能名称
+  const skill = skillsData.find(s => s.id.toString() === skillId.toString())
+  return skill ? skill.name : skillId
 }
 
 // 提取所有关联的技能ID（排除特殊对策）

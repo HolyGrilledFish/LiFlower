@@ -2,7 +2,7 @@
   模块编号：M99
   模块名称：清除缓存
   显示模式：所有模式
-  功能：清除浏览器缓存，加上提示
+  功能：清除浏览器缓存和角色数据
 -->
 <template>
   <div class="module-m99">
@@ -17,6 +17,10 @@
 <script setup>
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ModuleHeader from '@/components/ModuleHeader.vue'
+import { useCharacterStore } from '@/stores/character'
+import { clearCache } from '@/utils/cacheManager'
+
+const characterStore = useCharacterStore()
 
 const confirmClear = () => {
   ElMessageBox.confirm(
@@ -28,7 +32,10 @@ const confirmClear = () => {
       type: 'warning',
     }
   ).then(() => {
-    localStorage.clear()
+    // 清除 M0~M2 缓存
+    clearCache()
+    // 使用 store 的 resetCharacter 清除所有数据
+    characterStore.resetCharacter()
     ElMessage.success('缓存已清除，页面将刷新')
     setTimeout(() => {
       window.location.reload()
@@ -49,7 +56,7 @@ $cyber-cyan: #00f3ff;
     border-radius: 8px;
     padding: 16px;
   }
-  
+
   .warning-text {
     color: rgba(255, 82, 82, 0.9);
     margin: 0 0 16px 0;

@@ -66,7 +66,10 @@
     <div class="col col-operator">=</div>
 
     <!-- 属性 -->
-    <div class="col col-bonus">{{ attributeBonus > 0 ? '+' : '' }}{{ attributeBonus }}</div>
+    <div class="col col-bonus">
+      <template v-if="noAttributeBonus">-</template>
+      <template v-else>{{ attributeBonus > 0 ? '+' : '' }}{{ attributeBonus }}</template>
+    </div>
 
     <!-- 加号 -->
     <div class="col col-operator">+</div>
@@ -134,6 +137,10 @@ defineProps({
   attributeBonus: {
     type: Number,
     default: 0
+  },
+  noAttributeBonus: {
+    type: Boolean,
+    default: false
   },
   skillBonus: {
     type: Number,

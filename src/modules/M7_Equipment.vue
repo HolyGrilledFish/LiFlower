@@ -8,12 +8,13 @@
   <div class="module-equipment">
     <ModuleHeader title="芯片" subtitle="Chips">
       <template #right>
-        <span class="slot-info">
-          芯片槽位：<span class="slot-count">{{ usedSlots }}/{{ maxSlots }}</span>
-          <span v-if="patentCount > 0" class="patent-info">
-            (专利{{ patentCount }}个<span v-if="coordinationCount > 0">，协调{{ coordinationCount }}个</span>)
-          </span>
-        </span>
+        <button
+          class="hack-mode-btn"
+          :class="{ active: hackMode }"
+          @click="toggleHackMode"
+        >
+          {{ hackMode ? '破解模式：开' : '破解模式' }}
+        </button>
       </template>
     </ModuleHeader>
 
@@ -29,32 +30,31 @@
         :available-options="getAvailableOptions(index)"
         :manufacturer-id="selectedManufacturerId"
         :selected-patent-chip-ids="otherPatentChipIds(index)"
+        :hack-mode="hackMode"
         @update:modelValue="handleSlotChange(index, $event)"
       />
     </div>
 
-    <!-- 规则提示 -->
+    <!-- 规则提示（留空） -->
     <div class="rules-hint">
-      <p v-if="isPatentDisabled" class="patent-disabled-warning">
-        ⚠ {{ isBlackMarket ? '黑品人形无法使用专利芯片' : '越狱刷机人形无法使用专利芯片' }}
-      </p>
-      <p v-else>规则：每2个专利芯片之间需要1个协调芯片</p>
-      <p v-if="!isPatentDisabled">1专利=1槽 | 2专利+1协调=3槽 | 3专利+3协调=6槽</p>
+      <!-- 规则内容留空，后续决定 -->
     </div>
 
     <!-- 技能栏位 -->
-    <div class="skills-section">
-      <AttributeAllocator
-        :attribute-points="999"
-        :attribute-limit="5"
-        :attributes="skillValues"
-        :attribute-data="skillData"
-        :show-divider="false"
-        :modifier-rules="modifierRules"
-        :special-ranges="lockedSkillRanges"
-        :hide-zero="true"
-        @update:attributes="updateSkillValues"
-      />
+    <div v-if="hasNonZeroSkills" class="skills-section">
+      <div class="skills-allocator-wrapper">
+        <AttributeAllocator
+          :attribute-points="999"
+          :attribute-limit="5"
+          :attributes="skillValues"
+          :attribute-data="skillData"
+          :show-divider="false"
+          :modifier-rules="modifierRules"
+          :special-ranges="lockedSkillRanges"
+          :hide-zero="true"
+          @update:attributes="updateSkillValues"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -68,19 +68,32 @@ import AttributeAllocator from '@/components/AttributeAllocator.vue'
 import ModuleHeader from '@/components/ModuleHeader.vue'
 import patentChipsData from '@/data/patentChips.json'
 import skillsData from '@/data/skills.json'
+import manufacturerData from '@/data/企业技术.json'
 
 const outputsStore = useModuleOutputsStore()
+
+// M2数据版本号，用于强制触发skillTotals重新计算
+const m2Version = ref(0)
+
+// 监听M2数据变化
+watch(() => outputsStore.outputs['M2'], (newVal, oldVal) => {
+  console.log('[M7] M2数据变化:', { newVal, oldVal })
+  m2Version.value++
+}, { deep: true })
 
 // ==================== 芯片部分 ====================
 
 // 读取M2输出
-const m2Output = computed(() => outputsStore.getModuleOutput('M2') || {})
+const m2Output = computed(() => {
+  const data = outputsStore.outputs['M2'] || {}
+  return data
+})
 
 // 读取M3输出（用于检查剩余属性点）
-const m3Output = computed(() => outputsStore.getModuleOutput('M3') || {})
+const m3Output = computed(() => outputsStore.outputs['M3'] || {})
 
 // 读取M9输出（用于检查尖端武装词条）
-const m9Output = computed(() => outputsStore.getModuleOutput('M9') || {})
+const m9Output = computed(() => outputsStore.outputs['M9'] || {})
 
 // 计算动态槽位上限
 const maxSlots = computed(() => {
@@ -183,6 +196,14 @@ const isPatentDisabled = computed(() => {
   return isBlackMarket.value || hasJailbreak.value
 })
 
+// 破解模式状态
+const hackMode = ref(false)
+
+// 切换破解模式
+const toggleHackMode = () => {
+  hackMode.value = !hackMode.value
+}
+
 // 统计专利芯片数量
 const patentCount = computed(() => {
   return chipSlots.value.filter(slot => slot.type === 'patent').length
@@ -201,6 +222,30 @@ const normalCount = computed(() => {
 // 计算实际占用的槽位
 const usedSlots = computed(() => {
   return chipSlots.value.filter(slot => slot.type !== 'none').length
+})
+
+// 计算非法专利芯片数量（安装了非本企业可用的专利芯片）
+const illegalPatentChips = computed(() => {
+  if (!selectedManufacturerId.value) return 0
+  
+  const manufacturer = manufacturerData.find(m => m.id.toString() === selectedManufacturerId.value.toString())
+  if (!manufacturer || !manufacturer.availablePatentChips) return 0
+  
+  const availableIds = manufacturer.availablePatentChips
+  let illegalCount = 0
+  
+  chipSlots.value.forEach(slot => {
+    if (slot.type === 'patent' && slot.patentChipId) {
+      // 如果破解模式开启，所有芯片都视为合法
+      if (hackMode.value) return
+      // 否则检查是否在本企业可用列表中
+      if (!availableIds.includes(slot.patentChipId)) {
+        illegalCount++
+      }
+    }
+  })
+  
+  return illegalCount
 })
 
 // 检查是否可以添加专利芯片
@@ -340,6 +385,7 @@ const skillData = computed(() => {
 })
 
 // 从芯片计算技能值（类似 M15 的算法）
+// 从芯片计算技能值（类似 M15 的算法）
 const skillValues = computed(() => {
   const values = {}
 
@@ -348,14 +394,39 @@ const skillValues = computed(() => {
     values[skill.id] = 0
   })
 
-  // 从芯片读取技能加成
+  // 专利芯片技能加值映射（ID: [{skillId, value}]）
+  const patentChipSkillBonuses = {
+    1: [{ skillId: 3, value: 2 }],                    // 火控芯片 -> 枪械 +2
+    2: [{ skillId: 6, value: 2 }],                    // 冰墙 -> 编程 +2
+    6: [{ skillId: 7, value: 3 }],                    // 工程制作核心 -> 工程 +3
+    7: [{ skillId: 11, value: 2 }],                   // 电磁信号处理 -> 隐匿 +2
+    8: [                                              // 网络安全模型 -> 破解 +2, 编程 +2
+      { skillId: 5, value: 2 },
+      { skillId: 6, value: 2 }
+    ]
+  }
+
+  // 先处理专利芯片技能加值
+  chipSlots.value.forEach(slot => {
+    if (slot.type === 'patent' && slot.patentChipId) {
+      const bonuses = patentChipSkillBonuses[slot.patentChipId]
+      if (bonuses) {
+        bonuses.forEach(bonus => {
+          values[bonus.skillId] = bonus.value
+        })
+      }
+    }
+  })
+
+  // 再处理常规芯片技能加成（与专利芯片重叠时取最高值）
   chipSlots.value.forEach(slot => {
     if (slot.type === 'normal' &&
         slot.config?.normalSubtype === 'skill' &&
         slot.config?.skillId) {
-      const skillId = slot.config.skillId.toString()
-      // 升级 +3，未升级 +2
-      values[skillId] = slot.config.skillUpgraded ? 3 : 2
+      const skillId = slot.config.skillId
+      const chipValue = slot.config.skillUpgraded ? 3 : 2
+      // 取最高值
+      values[skillId] = Math.max(values[skillId] || 0, chipValue)
     }
   })
 
@@ -383,6 +454,11 @@ const lockedSkillRanges = computed(() => {
     normalMax: 0
   }
   return ranges
+})
+
+// 是否有非零技能值（用于控制技能栏位显示）
+const hasNonZeroSkills = computed(() => {
+  return Object.values(skillTotals.value).some(val => val !== 0)
 })
 
 // 更新技能值（所有技能只读，不处理更新）
@@ -481,14 +557,58 @@ function getSkillModifier(skillId) {
 
 // 技能总值计算（包含芯片值和特质调整值）
 const skillTotals = computed(() => {
+  // 依赖m2Version以确保M2变化时重新计算
+  const version = m2Version.value
+  console.log('[M7] skillTotals计算, version:', version)
+  
   const totals = {}
+  
+  // 获取 M2 输出
+  const m2Data = outputsStore.outputs['M2'] || {}
+  const manufacturerId = m2Data.manufacturerId
+  const traitIds = m2Data.traitIds || []
+
   skillsData.forEach(skill => {
     const skillId = skill.id.toString()
     // 基础值（芯片）
     let value = skillValues.value[skillId] || 0
-    // 加上调整值
-    const modifier = getSkillModifier(skillId)
-    totals[skillId] = value + modifier
+
+    // 企业加成
+    if (skillId === '2' && manufacturerId === 2) {
+      // 天穹防务 -> 闪避 +2
+      value += 2
+    }
+    if (skillId === '10' && manufacturerId === 7) {
+      // 海渊之子 -> 侦察 +2
+      value += 2
+    }
+
+    // 特质加成
+    if (skillId === '15') {
+      // 交涉相关
+      if (traitIds.includes('2') || traitIds.includes(2)) {
+        // 人形机械 -> 交涉 -2
+        value -= 2
+      }
+      if (traitIds.includes('5') || traitIds.includes(5)) {
+        // 偶像歌姬 -> 交涉 +2
+        value += 2
+      }
+      if (traitIds.includes('12') || traitIds.includes(12)) {
+        // 俄狄浦斯 -> 交涉 +1
+        value += 1
+      }
+    }
+    if (skillId === '5' && (traitIds.includes('7') || traitIds.includes(7))) {
+      // 肉鸡僵尸 -> 破解 +2
+      value += 2
+    }
+    if (skillId === '6' && (traitIds.includes('7') || traitIds.includes(7))) {
+      // 肉鸡僵尸 -> 编程 -2
+      value -= 2
+    }
+
+    totals[skillId] = value
   })
   return totals
 })
@@ -503,6 +623,40 @@ const skillBonuses = computed(() => {
     }))
 })
 
+// 芯片文本输出（用于显示）
+const chipTextOutput = computed(() => {
+  const lines = []
+  
+  // 专利芯片
+  chipSlots.value.forEach(slot => {
+    if (slot.type === 'patent' && slot.patentChipId) {
+      const chip = patentChipsData.chips.find(c => c.id === slot.patentChipId)
+      if (chip) {
+        lines.push(`${chip.name}：${chip.effect}`)
+      }
+    }
+  })
+  
+  // 额外程序
+  chipSlots.value.forEach(slot => {
+    if (slot.type === 'normal' &&
+        slot.config?.normalSubtype === 'program' &&
+        slot.config?.programName) {
+      const upgraded = slot.config.programUpgraded
+      const effect1 = slot.config.programName
+      const effect2 = slot.config.upgradeEffect || ''
+      
+      if (upgraded && effect2) {
+        lines.push(`功能芯片+：${effect1}；${effect2}`)
+      } else {
+        lines.push(`功能芯片：${effect1}`)
+      }
+    }
+  })
+  
+  return lines.join('\n')
+})
+
 // 是否应该输出数据（只有安装了专利芯片或常规芯片时才输出）
 const shouldOutput = computed(() => {
   return patentCount.value > 0 || normalCount.value > 0
@@ -514,14 +668,41 @@ useAutoOutput({
   skillBonuses,
   extraPrograms,
   skillValues: skillTotals,
+  illegalPatentChips,
+  chipTextOutput,
   shouldOutput
 })
 </script>
 
 <style lang="scss" scoped>
 $cyber-cyan: #00f3ff;
+$cyber-red: #ff2a6d;
 
 .module-equipment {
+  .hack-mode-btn {
+    background: rgba($cyber-cyan, 0.1);
+    border: 1px solid rgba($cyber-cyan, 0.3);
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: rgba($cyber-cyan, 0.8);
+    font-size: 12px;
+    font-family: "Courier New", monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba($cyber-cyan, 0.2);
+      border-color: rgba($cyber-cyan, 0.5);
+    }
+
+    &.active {
+      background: rgba($cyber-red, 0.2);
+      border-color: rgba($cyber-red, 0.5);
+      color: $cyber-red;
+      box-shadow: 0 0 8px rgba($cyber-red, 0.3);
+    }
+  }
+
   .slot-info {
     color: rgba(255, 255, 255, 0.7);
     font-size: 13px;
@@ -544,26 +725,9 @@ $cyber-cyan: #00f3ff;
   }
 
   .rules-hint {
-    margin-top: 16px;
-    padding: 12px;
-    background: rgba(0, 243, 255, 0.05);
-    border: 1px dashed rgba(0, 243, 255, 0.3);
-    border-radius: 4px;
-
-    p {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 12px;
-      margin: 4px 0;
-      font-family: "Courier New", monospace;
-    }
-
-    .patent-disabled-warning {
-      color: #ff2a6d;
-      font-weight: 600;
-      background: rgba(255, 42, 109, 0.1);
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid rgba(255, 42, 109, 0.3);
+    // 内容为空时不显示
+    &:empty {
+      display: none;
     }
   }
 
@@ -572,8 +736,8 @@ $cyber-cyan: #00f3ff;
     padding-top: 16px;
     border-top: 1px solid rgba($cyber-cyan, 0.1);
 
-    .skills-list {
-      margin-top: 12px;
+    .skills-allocator-wrapper {
+      width: 100%;
     }
   }
 }

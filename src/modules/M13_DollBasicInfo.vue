@@ -56,14 +56,12 @@
     </div>
 
     <!-- 企业规格效果 -->
-    <div v-if="manufacturerEffectDesc || hardwareSpecEffectDesc" class="effects-section">
-      <div v-if="manufacturerEffectDesc && manufacturerName" class="effect-item">
-        <span class="effect-name">{{ manufacturerName }}：</span>
-        <span class="effect-content">{{ manufacturerEffectDesc }}</span>
+    <div v-if="manufacturerEffectDesc || hardwareSpecEffectDesc" class="cyber-effect-text">
+      <div v-if="manufacturerEffectDesc && manufacturerName">
+        <strong>{{ manufacturerName }}：</strong>{{ manufacturerEffectDesc }}
       </div>
-      <div v-if="hardwareSpecEffectDesc && hardwareSpecName" class="effect-item">
-        <span class="effect-name">{{ hardwareSpecName }}人形：</span>
-        <span class="effect-content">{{ hardwareSpecEffectDesc }}</span>
+      <div v-if="hardwareSpecEffectDesc && hardwareSpecName">
+        <strong>{{ hardwareSpecName }}人形：</strong>{{ hardwareSpecEffectDesc }}
       </div>
     </div>
 
@@ -80,6 +78,12 @@
         :show-content="item.showContent"
       />
     </div>
+
+    <!-- 芯片信息展示 -->
+    <div v-if="chipTextOutput" class="cyber-effect-text chip-info-section">
+      <div class="chip-info-title">已安装芯片</div>
+      <div class="chip-info-content" v-html="parsedChipTextOutput"></div>
+    </div>
   </div>
 </template>
 
@@ -87,6 +91,7 @@
 import { computed } from 'vue'
 import { useModuleOutputsStore } from '@/stores/moduleOutputs'
 import DataDisplayItem from '@/components/DataDisplayItem.vue'
+import { extractManualText, extractAutoText, parseEffectText } from '@/utils/effectParser'
 import ModuleHeader from '@/components/ModuleHeader.vue'
 import config from '@/data/basicInfoConfig.json'
 
@@ -163,16 +168,20 @@ const characterDescription = computed(() => {
   return moduleData.description || ''
 })
 
-// 企业效果描述
+// 企业效果描述（只显示手动部分）
 const manufacturerEffectDesc = computed(() => {
   const moduleData = moduleOutputs.outputs.M2 || {}
-  return moduleData.manufacturerEffect || ''
+  const rawEffect = moduleData.manufacturerEffect || ''
+  const manualEffect = extractManualText(rawEffect)
+  return manualEffect || '效果已自动计入数据'
 })
 
-// 硬件规格效果描述
+// 硬件规格效果描述（只显示手动部分）
 const hardwareSpecEffectDesc = computed(() => {
   const moduleData = moduleOutputs.outputs.M2 || {}
-  return moduleData.hardwareSpecEffect || ''
+  const rawEffect = moduleData.hardwareSpecEffect || ''
+  const manualEffect = extractManualText(rawEffect)
+  return manualEffect || '效果已自动计入数据'
 })
 
 // 特质数据（ID 9,10）在属性之后显示
@@ -182,10 +191,25 @@ const traitItems = computed(() => {
     .map(item => {
       const moduleData = moduleOutputs.outputs[item.sourceModule] || {}
       const nameValue = moduleData[item.sourceField] || ''
-      const contentValue = item.contentField
+      const rawContent = item.contentField
         ? (moduleData[item.contentField] || '')
         : ''
+      // 特质效果处理：
+      // 1. 优先显示 [MANUAL] 部分
+      // 2. 如果没有 [MANUAL] 但有 [AUTO]，显示"效果已自动计入数据"
+      // 3. 如果都没有（如自由特质），显示原始内容
+      const manualContent = extractManualText(rawContent)
+      const autoContent = extractAutoText(rawContent)
+      let contentValue = ''
       
+      if (manualContent) {
+        contentValue = manualContent
+      } else if (autoContent) {
+        contentValue = '效果已自动计入数据'
+      } else if (rawContent) {
+        contentValue = rawContent
+      }
+
       return {
         id: item.id,
         label: item.label,
@@ -196,6 +220,44 @@ const traitItems = computed(() => {
         showContent: item.showContent
       }
     }).filter(item => item.name || item.content)
+})
+
+// 从 M7 获取芯片文本输出
+const chipTextOutput = computed(() => {
+  return moduleOutputs.outputs.M7?.chipTextOutput || ''
+})
+
+// 解析芯片文本输出（只显示 [MANUAL] 部分）
+const parsedChipTextOutput = computed(() => {
+  const rawOutput = chipTextOutput.value
+  if (!rawOutput) return ''
+  // 按行分割，每行提取 [MANUAL] 部分
+  const lines = rawOutput.split('\n')
+  const filteredLines = lines.filter(line => line.trim())
+  const processedLines = filteredLines.map(line => {
+    // 分离芯片名和效果（格式：芯片名：效果 或 芯片名：效果）
+    // 先找中文冒号，再找英文冒号
+    let colonIndex = line.indexOf('：')
+    if (colonIndex === -1) {
+      colonIndex = line.indexOf(':')
+    }
+    if (colonIndex === -1) return line
+
+    const chipName = line.substring(0, colonIndex + 1)
+    // 移除字面的 <br> 字符串（不是 HTML 标签）
+    let effectText = line.substring(colonIndex + 1)
+    effectText = effectText.replace(/<br>/gi, ' ').replace(/<br\s*\/?>/g, ' ').trim()
+    
+    const manualEffect = extractManualText(effectText)
+
+    // 如果没有 [MANUAL] 内容，显示提示
+    if (!manualEffect) {
+      return chipName + '效果已自动计入数据'
+    }
+    return chipName + manualEffect
+  })
+
+  return processedLines.join('<br>')
 })
 </script>
 
@@ -268,31 +330,9 @@ $cyber-purple: #bc13fe;
     font-style: italic;
   }
 
-  // 企业规格效果
+  // 企业规格效果（使用全局样式）
   .effects-section {
     margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba($cyber-cyan, 0.15);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .effect-item {
-    line-height: 1.6;
-  }
-
-  .effect-name {
-    color: $cyber-cyan;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: "Courier New", monospace;
-  }
-
-  .effect-content {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 13px;
-    line-height: 1.6;
   }
 
   // 角色阐述
@@ -384,6 +424,15 @@ $cyber-purple: #bc13fe;
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  // 芯片信息展示（使用全局样式）
+  .chip-info-section {
+    margin-top: 16px;
+  }
+
+  .chip-info-title {
+    margin-bottom: 8px;
   }
 }
 </style>

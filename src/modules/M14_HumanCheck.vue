@@ -58,6 +58,7 @@
           :name="entry.name"
           :value="entry.value"
           :attribute-bonus="entry.attributeBonus"
+          :no-attribute-bonus="entry.noAttributeBonus"
           :skill-bonus="entry.skillBonus"
           :skill-name="entry.skillName"
           :tool-bonus="entry.toolBonus"
@@ -118,6 +119,7 @@
           :name="entry.name"
           :value="entry.value"
           :attribute-bonus="entry.attributeBonus"
+          :no-attribute-bonus="entry.noAttributeBonus"
           :skill-bonus="entry.skillBonus"
           :skill-name="entry.skillName"
           :tool-bonus="entry.toolBonus"
@@ -347,7 +349,9 @@ const computedEntries = computed(() => {
     return {
       ...entry,
       value: totalValue,
-      hasSpecialization: hasSpec
+      hasSpecialization: hasSpec,
+      // 战斗条目：只有 skillId 为 null 或 "-" 时才不显示属性加值
+      noAttributeBonus: !entry.skillId || entry.skillId === '-' || entry.skillId === ''
     }
   })
 })
@@ -392,7 +396,9 @@ const computedCheckEntries = computed(() => {
     return {
       ...entry,
       value: totalValue,
-      hasSpecialization: hasSpec
+      hasSpecialization: hasSpec,
+      // 检定条目：技能 ID 4,11,12,13,14,15,16 不使用属性加值
+      noAttributeBonus: [4, 11, 12, 13, 14, 15, 16].includes(parseInt(entry.skillId))
     }
   })
 })

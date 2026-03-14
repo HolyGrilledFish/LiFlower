@@ -11,11 +11,15 @@
     <el-form label-position="top">
       <!-- 角色名称（与 M0 同步） -->
       <el-form-item>
-        <el-input
-          v-model="characterStore.characterName"
-          placeholder="请输入"
-          class="cyber-input-short"
-        />
+        <div class="form-row">
+          <span class="field-label">角色名称</span>
+          <el-input
+            v-model="characterStore.characterName"
+            placeholder="请输入"
+            class="cyber-input-short"
+            style="flex: 1"
+          />
+        </div>
       </el-form-item>
 
       <!-- 生产企业 -->
@@ -31,16 +35,17 @@
             style="flex: 1"
           />
           <TipButton level="3" :content="currentEnterpriseFullDesc">
-            企业说明
+            
           </TipButton>
         </div>
-        <!-- 效果说明文字（样式优化） -->
-        <div v-if="currentManufacturerEffectDesc && currentManufacturerEffectDesc.length > 0" class="effect-text">
-          <ul class="effect-list">
-            <li v-for="(item, index) in currentManufacturerEffectDesc" :key="index">{{ item }}</li>
-          </ul>
-        </div>
       </el-form-item>
+
+      <!-- 企业效果（独立全宽区域） -->
+      <div v-if="currentManufacturerEffectDesc && currentManufacturerEffectDesc.length > 0" class="effect-text-wrapper">
+        <div class="cyber-effect-text">
+          <div v-for="(item, index) in currentManufacturerEffectDesc" :key="index" class="effect-item" v-html="parseEffectText(item)"></div>
+        </div>
+      </div>
 
       <!-- 硬件规格 -->
       <el-form-item>
@@ -55,16 +60,17 @@
             style="flex: 1"
           />
           <TipButton level="3" :content="currentHardwareFullDesc">
-            规格说明
+
           </TipButton>
         </div>
-        <!-- 效果说明文字（样式优化） -->
-        <div v-if="currentHardwareEffectDesc && currentHardwareEffectDesc.length > 0" class="effect-text">
-          <ul class="effect-list">
-            <li v-for="(item, index) in currentHardwareEffectDesc" :key="index">{{ item }}</li>
-          </ul>
-        </div>
       </el-form-item>
+
+      <!-- 硬件规格效果（独立全宽区域） -->
+      <div v-if="currentHardwareEffectDesc && currentHardwareEffectDesc.length > 0" class="effect-text-wrapper">
+        <div class="cyber-effect-text">
+          <div v-for="(item, index) in currentHardwareEffectDesc" :key="index" class="effect-item" v-html="parseEffectText(item)"></div>
+        </div>
+      </div>
 
       <!-- 可展开的角色阐述 -->
       <el-form-item class="character-desc-item">
@@ -106,8 +112,7 @@
                   />
                 </div>
                 <!-- 普通特质：显示效果描述 -->
-                <div v-else-if="trait.effect" class="effect-text trait-effect">
-                  {{ trait.effect }}
+                <div v-else-if="trait.effect" class="cyber-effect-text trait-effect" v-html="parseEffectText(trait.effect)">
                 </div>
               </div>
             </div>
@@ -119,14 +124,15 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { reactive, computed, watch, onMounted } from 'vue'
 import CyberSelect from "@/components/CyberSelect.vue"
 import AttributeAllocator from "@/components/AttributeAllocator.vue"
 import TipButton from "@/components/TipButton.vue"
 import ModuleHeader from "@/components/ModuleHeader.vue"
 import { useCharacterStore } from "@/stores/character"
 import { useAutoOutput } from "@/composables/useModuleOutput"
+import { getM2Cache, getHardwareSpecNameById, getManufacturerNameById, getHardwareSpecBonus, getManufacturerBonus } from "@/utils/cacheManager"
+import { parseEffectText } from "@/utils/effectParser"
 
 // 导入数据
 import hardwareSpecData from "@/data/硬件规格.json"
@@ -145,6 +151,86 @@ const localData = reactive({
     { id: "", description: "", effect: "", customEffect: "" }
   ]
 })
+
+// 判断是否为自由特质（ID为0）
+const isCustomTrait = (traitId) => {
+  return traitId === '0' || traitId === 0
+}
+
+// ==================== 从缓存恢复 ====================
+onMounted(() => {
+  // 注册本地数据到全局缓存管理器
+  if (window.liflowerCache) {
+    window.liflowerCache.registerM2(localData)
+  }
+
+  const cache = getM2Cache()
+  if (!cache) return
+
+  // 恢复硬件规格
+  if (cache.hardwareSpecId) {
+    const specName = getHardwareSpecNameById(cache.hardwareSpecId)
+    if (specName) {
+      characterStore.hardwareSpec = specName
+      characterStore.baseAttributePoints = getHardwareSpecBonus(cache.hardwareSpecId)
+    }
+  }
+
+  // 恢复生产企业
+  if (cache.manufacturerId) {
+    const mfrName = getManufacturerNameById(cache.manufacturerId)
+    if (mfrName) {
+      characterStore.manufacturer = mfrName
+      // 重新计算总属性点
+      characterStore.totalAttributePoints = characterStore.baseAttributePoints + getManufacturerBonus(cache.manufacturerId)
+    }
+  }
+
+  // 恢复阐述
+  if (cache.description) {
+    localData.description = cache.description
+  }
+
+  // 恢复特质
+  if (cache.traits && Array.isArray(cache.traits)) {
+    cache.traits.forEach((t, index) => {
+      if (localData.traits[index]) {
+        localData.traits[index].id = t.id || ''
+        localData.traits[index].customEffect = t.custom || ''
+        // 恢复描述和效果
+        updateTraitInfo(index, t.id)
+      }
+    })
+  }
+})
+
+// 辅助函数：根据特质ID更新描述和效果
+function updateTraitInfo(index, traitId) {
+  if (!traitId) {
+    localData.traits[index].description = ''
+    localData.traits[index].effect = ''
+    return
+  }
+  if (isCustomTrait(traitId)) {
+    localData.traits[index].description = '自定义特质'
+    localData.traits[index].effect = localData.traits[index].customEffect || ''
+  } else {
+    const trait = traitsData.find(t => t.id.toString() === traitId)
+    localData.traits[index].description = trait ? trait.description : ''
+    localData.traits[index].effect = trait ? trait.effect : ''
+  }
+}
+
+// ==================== 监听变化触发保存 ====================
+watch([
+  () => characterStore.hardwareSpec,
+  () => characterStore.manufacturer,
+  () => localData.description,
+  () => localData.traits.map(t => t.id),
+  () => localData.traits.map(t => t.customEffect)
+], () => {
+  window.dispatchEvent(new CustomEvent('liflower-save-cache'))
+}, { deep: true })
 
 // 数据列表
 const hardwareSpecList = hardwareSpecData
@@ -232,11 +318,6 @@ const getTraitEffect = (traitId) => {
   return trait ? trait.effect : ''
 }
 
-// 判断是否为自由特质（ID 为 0）
-const isCustomTrait = (traitId) => {
-  return traitId === '0' || traitId === 0
-}
-
 // 监听特质选择变化，更新描述和效果，并同步到 store
 localData.traits.forEach((trait, index) => {
   watch(() => trait.id, (newId) => {
@@ -257,7 +338,6 @@ const onHardwareChange = (value) => {
   const selected = hardwareSpecList.find((item) => item.name === value)
   if (selected) {
     characterStore.setHardwareSpec(value, selected.effect.attributePointsBonus)
-    ElMessage.success(`已选择 ${selected.name}，获得 ${selected.effect.attributePointsBonus} 点属性点`)
   }
 }
 
@@ -265,7 +345,6 @@ const onHardwareChange = (value) => {
 const onEnterpriseChange = (value) => {
   if (!value) {
     characterStore.setManufacturer("", 0)
-    ElMessage.info("已取消选择生产企业")
   } else {
     const selected = manufacturerList.find((item) => item.nameZh === value)
     if (selected) {
@@ -276,9 +355,6 @@ const onEnterpriseChange = (value) => {
       if (characterStore.hardwareSpec && !selected.producedSpecs.includes(characterStore.hardwareSpec)) {
         // 重置硬件规格选择
         characterStore.setHardwareSpec("", 0)
-        ElMessage.warning(`${selected.nameZh} 不生产 ${characterStore.hardwareSpec}，请重新选择硬件规格`)
-      } else {
-        ElMessage.success(`已选择 ${selected.nameZh}${bonus > 0 ? ` (属性点 +${bonus})` : ""}`)
       }
     }
   }
@@ -399,30 +475,17 @@ $cyber-purple: #bc13fe;
     line-height: 1.6;
   }
 
-  // 效果说明文字（使用全局样式）
-  .effect-text {
-    margin-top: 8px;
-    color: rgba(0, 243, 255, 0.8);
-    font-size: 13px;
-    font-style: italic;
-    border-left: 3px solid rgba(0, 243, 255, 0.3);
-    padding-left: 12px;
-    line-height: 1.6;
+  // 效果文本全宽容器
+  .effect-text-wrapper {
+    width: 100%;
+    margin-top: 0;        // 紧贴上方下拉框（无间距）
+    margin-bottom: 8px;   // 与下方元素留间距
+    padding-left: 78px;   // 与 field-label (70px) + gap (8px) 对齐
+    box-sizing: border-box;
 
-    .effect-list {
-      margin: 0;
-      padding-left: 20px;
-
-      li {
-        margin: 4px 0;
-      }
-    }
-
-    &.trait-effect {
-      border-left: none;
-      padding-left: 0;
-      margin-left: 68px;
-      margin-top: 4px;
+    // 覆盖全局 cyber-effect-text 的 margin-top
+    .cyber-effect-text {
+      margin-top: 0;
     }
   }
 
@@ -430,6 +493,16 @@ $cyber-purple: #bc13fe;
   .character-desc-item {
     :deep(.el-form-item__content) {
       width: 100%;
+    }
+  }
+
+  // 覆盖 el-form-item 的默认底部 margin，改为顶部 margin
+  :deep(.el-form-item) {
+    margin-bottom: 0;   // 下方无间距
+    margin-top: 8px;    // 上方有间距
+
+    &:first-child {
+      margin-top: 0;    // 第一个元素上方无间距
     }
   }
 
@@ -484,10 +557,12 @@ $cyber-purple: #bc13fe;
       }
     }
 
-    // 自定义特质输入框
+    // 特质效果与特质选择器对齐
+    .trait-effect,
     .custom-trait-input {
-      margin-left: 68px;
-      margin-top: 8px;
+      margin-left: 78px;  // 与 trait-label (60px) + gap (8px) + 额外间距对齐
+      margin-top: 0;      // 紧贴上方特质选择器（无间距）
+      margin-bottom: 6px; // 与下方元素留间距
     }
   }
 }

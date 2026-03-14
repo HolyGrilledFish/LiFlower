@@ -532,7 +532,7 @@ $cyber-red: #ff5252;
   gap: 8px;
 
   .attribute-value {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     color: $cyber-cyan;
     font-family: "Courier New", monospace;
@@ -578,8 +578,8 @@ $cyber-red: #ff5252;
 }
 
 .attr-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -637,7 +637,7 @@ $cyber-red: #ff5252;
 .attribute-value {
   min-width: 24px;
   text-align: center;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: $cyber-cyan;
   font-family: "Courier New", "Consolas", monospace;
